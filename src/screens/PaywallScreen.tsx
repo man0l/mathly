@@ -25,7 +25,7 @@ const FEATURES = [
 ];
 
 const PLANS = [
-  { id: 'yearly', title: 'Yearly', price: '$39.99', per: '$3.33 / week', badge: 'SAVE 73%', trial: '3 days free' },
+  { id: 'yearly', title: 'Yearly', price: '$39.99', per: '$0.77 / week', badge: 'SAVE 89%', trial: '3 days free' },
   { id: 'weekly', title: 'Weekly', price: '$6.99', per: 'billed every week', badge: null, trial: null },
 ];
 
