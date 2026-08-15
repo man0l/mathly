@@ -233,9 +233,14 @@ async function main() {
     // so give the store cut a silent AAC track rather than stripping audio.
     const SILENT_AUDIO = ['-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100'];
     const outs = {
+      // setsar=1 is load-bearing. Chrome records at an even width (442, not the
+      // 443 requested), so scaling to 886 makes ffmpeg preserve the source
+      // display aspect via a 442:443 pixel aspect instead of square pixels.
+      // App Store Connect measures the *display* size, so 886x1920 with that
+      // SAR reads as 884x1920 and is rejected for wrong dimensions.
       'app-preview-886x1920.mp4': {
         pre: SILENT_AUDIO,
-        extra: [`-vf`, `scale=${OUT_W}:${OUT_H}:flags=lanczos`, `-t`, String(MAX_SECONDS)],
+        extra: [`-vf`, `scale=${OUT_W}:${OUT_H}:flags=lanczos,setsar=1`, `-t`, String(MAX_SECONDS)],
         audio: ['-c:a', 'aac', '-b:a', '128k', '-shortest'],
       },
       'demo-720p.mp4': {
