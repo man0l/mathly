@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { Button } from '../components/ui';
 import { CheckIcon, CrownIcon } from '../components/icons';
+import { openLegalLink } from '../lib/links';
 import {
   configurePurchases,
   purchasesAvailable,
@@ -143,9 +144,21 @@ export function PaywallScreen() {
               <Text style={styles.legalText}>Restore</Text>
             </Pressable>
             <Text style={styles.legalText}>·</Text>
-            <Text style={styles.legalText}>Terms</Text>
+            <Pressable
+              onPress={() => openLegalLink('terms')}
+              accessibilityRole="link"
+              accessibilityLabel="Terms of use"
+            >
+              <Text style={styles.legalText}>Terms</Text>
+            </Pressable>
             <Text style={styles.legalText}>·</Text>
-            <Text style={styles.legalText}>Privacy</Text>
+            <Pressable
+              onPress={() => openLegalLink('privacy')}
+              accessibilityRole="link"
+              accessibilityLabel="Privacy policy"
+            >
+              <Text style={styles.legalText}>Privacy</Text>
+            </Pressable>
           </View>
           <Text style={[typography.small, { textAlign: 'center', marginTop: 8 }]}>
             No charge during your trial. Cancel anytime in your store settings.

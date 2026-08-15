@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppNavigation } from '../navigation';
 
 import { BookIcon, ChevronRight, CrownIcon, SettingsIcon, TrashIcon } from '../components/icons';
+import { openLegalLink } from '../lib/links';
 import { restorePurchases } from '../lib/purchases';
 import { colors, radius, typography } from '../theme/tokens';
 import { useApp } from '../state/AppProvider';
@@ -107,9 +108,7 @@ export function SettingsScreen() {
   );
 }
 
-function openLink(_which: 'privacy' | 'terms') {
-  // Store submission: replace with the hosted policy URLs before review.
-}
+const openLink = openLegalLink;
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
