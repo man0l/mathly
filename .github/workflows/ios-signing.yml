@@ -131,7 +131,11 @@ jobs:
               <string>${{ secrets.IOS_PROVISIONING_PROFILE_NAME }}</string>
             </dict>
           </dict>
+          </plist>
           EOF
+          # A malformed plist fails export with an opaque "isn't in the correct
+          # format", so prove it parses before handing it to xcodebuild.
+          plutil -lint exportOptions.plist
 
       # expo prebuild names the Xcode project after expo.name in app.json, so
       # renaming the app renames the workspace and scheme. Derive them from what
