@@ -1,0 +1,13 @@
+node_modules/
+.expo/
+dist/
+web-build/
+android/
+ios/
+ios-certs/
+.env
+*.log
+.playwright-mcp/
+test-results/
+docs/app-store-screenshots/_raw/
+docs/app-store-screenshots/_work/
