@@ -75,17 +75,23 @@ records at 443×960 and ffmpeg-upscales to Apple's 886×1920 / 30fps / H.264.
 
 ## Backend deployment (Vercel)
 
+Already deployed: **https://aimathapp.vercel.app** (Vercel project `aimathapp`,
+linked to `man0l/mathly`, OpenAI key set as a Production env var). For a fresh
+deployment:
+
 ```bash
 npm i -g vercel
 vercel                     # link project
-vercel env add OPENAI_API_KEY
-vercel env add OPENAI_MODEL          # gpt-5.4-mini
-vercel --prod
+vercel env add OPENAI_API_KEY production
+vercel env add OPENAI_MODEL production   # gpt-5.4-mini
+vercel deploy --prod
 ```
 
-Then set the deployment URL in `.env` (`EXPO_PUBLIC_API_BASE_URL`) and in the
-GitHub secret of the same name. The OpenAI key lives **only** server-side —
-never in `EXPO_PUBLIC_*`.
+The deployment URL is already in `.env` (`EXPO_PUBLIC_API_BASE_URL`) and in the
+gitHub secret of the same name. Notes: keep commit authors on a Vercel-verified
+email — Hobby blocks deployments with `COMMIT_AUTHOR_REQUIRED` otherwise — and
+make sure Deployment Protection → Vercel Authentication is off for public API
+access. The OpenAI key lives **only** server-side — never in `EXPO_PUBLIC_*`.
 
 ## CI / release (same strategy as looxmaxxing)
 
