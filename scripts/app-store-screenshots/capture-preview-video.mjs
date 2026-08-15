@@ -228,16 +228,28 @@ async function main() {
     console.log('recorded', src);
 
     // Transcode to Apple's app-preview spec + a social-friendly square-ish cut.
+    // App Store Connect rejects previews with no audio track — and does it
+    // silently, so the upload just never appears. The recording has no sound,
+    // so give the store cut a silent AAC track rather than stripping audio.
+    const SILENT_AUDIO = ['-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100'];
     const outs = {
-      'app-preview-886x1920.mp4': [`-vf`, `scale=${OUT_W}:${OUT_H}:flags=lanczos`, `-t`, String(MAX_SECONDS)],
-      'demo-720p.mp4': [`-vf`, `scale=720:-2`, `-t`, String(MAX_SECONDS)],
+      'app-preview-886x1920.mp4': {
+        pre: SILENT_AUDIO,
+        extra: [`-vf`, `scale=${OUT_W}:${OUT_H}:flags=lanczos`, `-t`, String(MAX_SECONDS)],
+        audio: ['-c:a', 'aac', '-b:a', '128k', '-shortest'],
+      },
+      'demo-720p.mp4': {
+        pre: [],
+        extra: [`-vf`, `scale=720:-2`, `-t`, String(MAX_SECONDS)],
+        audio: ['-an'],
+      },
     };
-    for (const [name, extra] of Object.entries(outs)) {
+    for (const [name, { pre, extra, audio }] of Object.entries(outs)) {
       const out = path.join(OUT_DIR, name);
       console.log('transcoding →', name);
       const res = spawnSync(
         'ffmpeg',
-        ['-y', '-i', src, ...extra, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-r', '30', '-an', out],
+        ['-y', '-i', src, ...pre, ...extra, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-r', '30', ...audio, out],
         { stdio: 'inherit', shell: true },
       );
       if (res.status !== 0) throw new Error(`ffmpeg failed for ${name}`);
