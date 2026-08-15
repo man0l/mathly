@@ -41,12 +41,25 @@ export async function configurePurchases(): Promise<boolean> {
   return configured;
 }
 
-export async function purchasePro(): Promise<boolean> {
+export type PlanId = 'yearly' | 'weekly';
+
+/** RevenueCat package types and App Store product IDs, per plan. */
+const PLAN_PACKAGE_TYPE: Record<PlanId, string> = {
+  yearly: 'ANNUAL',
+  weekly: 'WEEKLY',
+};
+
+export async function purchasePro(plan: PlanId): Promise<boolean> {
   const Purchases = getPurchases();
   if (!Purchases || !configured) return false;
   const offerings = await Purchases.getOfferings();
-  const pkg = offerings.current?.availablePackages[0];
-  if (!pkg) throw new Error('No offering package available');
+  const packages = offerings.current?.availablePackages ?? [];
+  // Never fall back to an arbitrary package — charging a plan the user did not
+  // pick is worse than failing the purchase.
+  const pkg =
+    packages.find((p) => p.packageType === PLAN_PACKAGE_TYPE[plan]) ??
+    packages.find((p) => p.product.identifier.endsWith(`.${plan}`));
+  if (!pkg) throw new Error(`No offering package for the ${plan} plan`);
   const { customerInfo } = await Purchases.purchasePackage(pkg);
   return !!customerInfo.entitlements.active[ENTITLEMENT_ID];
 }

@@ -12,6 +12,7 @@ import {
   purchasePro,
   restorePurchases,
   simulatePurchase,
+  type PlanId,
 } from '../lib/purchases';
 import { colors, radius, typography } from '../theme/tokens';
 import { useApp } from '../state/AppProvider';
@@ -24,14 +25,23 @@ const FEATURES = [
   'Priority solving speed',
 ];
 
-const PLANS = [
+type Plan = {
+  id: PlanId;
+  title: string;
+  price: string;
+  per: string;
+  badge: string | null;
+  trial: string | null;
+};
+
+const PLANS: Plan[] = [
   { id: 'yearly', title: 'Yearly', price: '$39.99', per: '$0.77 / week', badge: 'SAVE 89%', trial: '3 days free' },
   { id: 'weekly', title: 'Weekly', price: '$6.99', per: 'billed every week', badge: null, trial: null },
 ];
 
 export function PaywallScreen() {
   const { setPro } = useApp();
-  const [plan, setPlan] = useState('yearly');
+  const [plan, setPlan] = useState<PlanId>('yearly');
   const [loading, setLoading] = useState(false);
   const [showTestPurchase, setShowTestPurchase] = useState(!purchasesAvailable);
 
@@ -40,7 +50,7 @@ export function PaywallScreen() {
     try {
       await configurePurchases();
       if (purchasesAvailable) {
-        const ok = await purchasePro();
+        const ok = await purchasePro(plan);
         if (ok) await setPro(true);
       } else {
         // Web/dev: simulate the purchase flow like the RC test store would.
