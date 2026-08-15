@@ -11,3 +11,4 @@ ios-certs/
 test-results/
 docs/app-store-screenshots/_raw/
 docs/app-store-screenshots/_work/
+.vercel
