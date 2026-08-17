@@ -123,6 +123,7 @@ App Store Connect → your app → **Version 1.0.0**:
 | Screenshots | drag in all 6 from `en-US-6.9in/` (6.5" auto-fills) |
 | App Preview | `app-preview-886x1920.mp4` |
 | Privacy Policy URL | hosted URL from step 6 |
+| Terms of Use (EULA) | custom EULA: set App Information → Terms of Use → `https://www.balkanbit.app/mathly/terms`, **and** keep the link in the Description (below) — the automated 3.1.2 check scans the Description |
 | Support URL | your site or `https://github.com/man0l/mathly` |
 | Category | Education (secondary: Productivity) |
 | Age Rating | answer quiz → 4+ (no user content, no web browsing) |
@@ -138,6 +139,9 @@ Then **Submit for Review**. Typical first-review turnaround: 24–48h.
 - ✅ Camera purpose strings (`NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`)
 - ✅ Privacy manifest + `ITSAppUsesNonExemptEncryption=false`
 - ✅ Paywall shows price + trial terms; Restore button present
+- ✅ Terms of Use (EULA) link in the App Store Description + custom EULA URL
+  in App Information (3.1.2 automated check) — links live at
+  `balkanbit.app/mathly/terms` / `/privacy-policy`
 - ✅ No signup wall — app usable (scan + solve) after onboarding
 - ⚠️ **Sign in required? No.** Leave as-is.
 - ⚠️ If IAP products are missing/invalid in App Store Connect (step 5), review

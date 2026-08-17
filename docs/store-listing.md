@@ -37,6 +37,9 @@ ask "why the ±?" → practice. That's one Mathly session.
 Privacy: photos you scan are used only to solve your problem. Delete all your
 data anytime from Settings.
 
+Terms of Use (EULA): https://www.balkanbit.app/mathly/terms
+Privacy Policy: https://www.balkanbit.app/mathly/privacy-policy
+
 **Keywords:** math, solver, tutor, algebra, calculus, homework, scan, step by step, camera, physics, chemistry, statistics, graphing, study, education
 
 **Category:** Education
