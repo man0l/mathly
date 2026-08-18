@@ -110,12 +110,38 @@ Used twice by the workflow: `scripts/next-android-version-code.mjs` asks Play
 for the highest `versionCode` already published, and `upload-google-play`
 pushes the bundle to the internal track.
 
-1. Play Console → **Setup → API access** → link a Google Cloud project.
+1. Play Console → **Setup → API access** → link a Google Cloud project, and
+   enable the **Google Play Android Developer API** in that project.
 2. Google Cloud → **IAM & Admin → Service accounts** → create one → **Keys →
    Add key → JSON**. Download it.
-3. Back in Play Console → API access → **Grant access** for that account, with
-   at least *Release to testing tracks* and *View app information* on
-   `com.balkanbit.mathly`. Permissions take a few minutes to propagate.
+3. Back in Play Console → API access → **Grant access** for that account.
+
+### Which permissions to grant
+
+Grant these as **app permissions scoped to `com.balkanbit.mathly`**, not
+account permissions — a leaked key then cannot touch anything else:
+
+| Permission | Why this workflow needs it |
+| --- | --- |
+| **View app information (read-only)** | `next-android-version-code.mjs` opens an edit and lists tracks to find the highest published `versionCode` |
+| **Release apps to testing tracks** | `upload-google-play` uploads the `.aab` + mapping file and creates the internal-track release |
+
+That is the whole set. Notably **not** needed:
+
+- *Release to production, exclude devices, and use Play App Signing* — this
+  workflow only targets the internal track, and withholding it means the key
+  cannot ship to production even if it leaks.
+- *Manage testing tracks and edit tester lists* — only needed to change who
+  the testers are, which CI never does.
+- *View financial data* / *Manage orders and subscriptions* — billing APIs,
+  unrelated.
+- **Any Google Cloud IAM role on the service account.** The GCP project only
+  hosts the account and enables the API; authorization for publishing comes
+  entirely from the Play Console grant. Do not add Editor/Owner.
+
+Grants usually take effect within minutes but can take up to 24 hours. A
+permission that hasn't propagated shows up as a 401/403 from the version-code
+step, which falls back to `github.run_number` rather than failing the build.
 
 ```bash
 gh secret set GOOGLE_PLAY_SERVICE_ACCOUNT_JSON < service-account.json
