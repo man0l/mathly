@@ -20,33 +20,50 @@ command -v gh >/dev/null || {
   exit 1
 }
 
-# A keystore is just a PKCS#12 file, so either keytool or openssl can make one.
-# keytool ships with any JDK and is also bundled inside Android Studio; openssl
-# is preinstalled on macOS, so nothing has to be installed to get an upload key.
-if ! command -v keytool >/dev/null; then
+# A keystore is just a PKCS#12 file, so either keytool or openssl can build one.
+# openssl is preinstalled on macOS and every Linux runner, so it is the default
+# and nothing has to be installed to get an upload key.
+#
+# keytool is only used when openssl is absent, and it is probed rather than
+# merely located: macOS ships a /usr/bin/keytool STUB that exists on PATH with
+# no JDK behind it and dies with "Unable to locate a Java Runtime", so
+# `command -v keytool` is not evidence that keytool works.
+keytool_usable() {
+  command -v "$1" >/dev/null 2>&1 && "$1" -help >/dev/null 2>&1
+}
+
+find_working_keytool() {
+  local candidate
+  if keytool_usable keytool; then
+    echo keytool
+    return 0
+  fi
   for candidate in \
     "/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/keytool" \
-    "$HOME/Library/Java/JavaVirtualMachines"/*/Contents/Home/bin/keytool; do
-    if [[ -x "$candidate" ]]; then
-      PATH="$(dirname "$candidate"):$PATH"
-      break
+    "$HOME/Library/Java/JavaVirtualMachines"/*/Contents/Home/bin/keytool \
+    "$JAVA_HOME/bin/keytool"; do
+    if [[ -x "$candidate" ]] && keytool_usable "$candidate"; then
+      echo "$candidate"
+      return 0
     fi
   done
-fi
+  return 1
+}
 
-if command -v keytool >/dev/null; then
-  KEYSTORE_TOOL=keytool
-elif command -v openssl >/dev/null; then
+JAVA_HOME="${JAVA_HOME:-}"
+if command -v openssl >/dev/null 2>&1; then
   KEYSTORE_TOOL=openssl
+elif KEYTOOL_BIN="$(find_working_keytool)"; then
+  KEYSTORE_TOOL=keytool
 else
-  echo "error: need either keytool (any JDK) or openssl to build the keystore" >&2
+  echo "error: need openssl (preinstalled on macOS) or a working keytool" >&2
   exit 1
 fi
 echo "Keystore tool: $KEYSTORE_TOOL"
 
 generate_keystore() {       # file alias password
   if [[ "$KEYSTORE_TOOL" == keytool ]]; then
-    keytool -genkeypair -v \
+    "$KEYTOOL_BIN" -genkeypair -v \
       -keystore "$1" -storetype PKCS12 \
       -alias "$2" -keyalg RSA -keysize 2048 -validity 10000 \
       -storepass "$3" -keypass "$3" \
@@ -69,7 +86,7 @@ generate_keystore() {       # file alias password
 
 verify_keystore() {         # file alias password
   if [[ "$KEYSTORE_TOOL" == keytool ]]; then
-    keytool -list -keystore "$1" -storetype PKCS12 -storepass "$3" -alias "$2" >/dev/null 2>&1
+    "$KEYTOOL_BIN" -list -keystore "$1" -storetype PKCS12 -storepass "$3" -alias "$2" >/dev/null 2>&1
   else
     openssl pkcs12 -in "$1" -nokeys -passin pass:"$3" >/dev/null 2>&1
   fi
@@ -77,7 +94,7 @@ verify_keystore() {         # file alias password
 
 print_fingerprints() {      # file alias password
   if [[ "$KEYSTORE_TOOL" == keytool ]]; then
-    keytool -list -v -keystore "$1" -storetype PKCS12 -storepass "$3" -alias "$2" \
+    "$KEYTOOL_BIN" -list -v -keystore "$1" -storetype PKCS12 -storepass "$3" -alias "$2" \
       | grep -E 'SHA1:|SHA256:' || true
     return
   fi
@@ -111,7 +128,7 @@ prompt_secret() {           # prompt_secret VAR_NAME "question"
   printf -v "$__var" '%s' "$__value"
 }
 
-b64() { base64 -w0 "$1" 2>/dev/null || base64 "$1" | tr -d '\n'; }
+b64() { base64 -w0 < "$1" 2>/dev/null || base64 < "$1" | tr -d '\n'; }
 
 # --- 1. keystore -------------------------------------------------------------
 if [[ -f "$KEYSTORE_FILE" ]]; then

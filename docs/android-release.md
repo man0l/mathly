@@ -38,11 +38,14 @@ bash scripts/setup-android-secrets.sh
 ```
 
 **No JDK required.** A keystore is just a PKCS#12 file, so the script builds it
-with `openssl` — preinstalled on macOS — when no `keytool` is around. If you do
-have a JDK, or Android Studio (whose bundled `keytool` the script finds on its
-own), it uses that instead. Both produce a byte-compatible keystore; Gradle and
-Play cannot tell them apart. The script also works with the stock macOS bash
-3.2 and BSD `base64`.
+with `openssl`, which macOS preinstalls; `keytool` is used only if openssl is
+missing. Both produce a byte-compatible keystore — Gradle and Play cannot tell
+them apart. The script also works with the stock macOS bash 3.2 and BSD
+`base64`.
+
+> macOS ships a `/usr/bin/keytool` **stub** that exists on `PATH` with no JDK
+> behind it and fails with "Unable to locate a Java Runtime". The scripts
+> therefore probe `keytool -help` rather than trusting `command -v keytool`.
 
 To build the keystore by hand with no Java at all:
 

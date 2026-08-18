@@ -49,9 +49,11 @@ if sa["type"] != "service_account":
   fi
 fi
 
-# CI always has keytool via setup-java; openssl keeps this runnable on a Mac
-# with no JDK installed.
-if command -v keytool >/dev/null 2>&1; then
+# Prefer keytool, which can check the alias as well as the password — CI always
+# has it via setup-java. Fall back to openssl on a machine with no JDK. keytool
+# is probed, not just located: macOS ships a /usr/bin/keytool stub that exists
+# on PATH with no Java behind it.
+if command -v keytool >/dev/null 2>&1 && keytool -help >/dev/null 2>&1; then
   keystore_check=keytool
 elif command -v openssl >/dev/null 2>&1; then
   keystore_check=openssl
