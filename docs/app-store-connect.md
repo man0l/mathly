@@ -62,8 +62,8 @@ Add these (values follow looxmaxxing's conventions):
 | `APP_STORE_CONNECT_ISSUER_ID` | from step 3 |
 | `APP_STORE_CONNECT_API_KEY_BASE64` | base64 of the `.p8` |
 
-(Also mirror looxmaxxing's Android secrets when you do the Play release:
-keystore quartet + `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` + `EXPO_PUBLIC_REVENUECAT_KEY`.)
+(The Android side — keystore quartet + `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` +
+`EXPO_PUBLIC_REVENUECAT_KEY` — is covered in `docs/android-release.md`.)
 
 Sanity check without burning a build: run the workflow with job
 `verify-signing` / certificate `distribution` — it should print your identity.

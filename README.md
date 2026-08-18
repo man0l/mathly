@@ -109,7 +109,11 @@ access. The OpenAI key lives **only** server-side — never in `EXPO_PUBLIC_*`.
 Android: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
 `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`,
 `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`, `EXPO_PUBLIC_API_BASE_URL`,
-`EXPO_PUBLIC_REVENUECAT_KEY`.
+`EXPO_PUBLIC_REVENUECAT_KEY`. Set them all in one pass with
+`bash scripts/setup-android-secrets.sh` (generates the upload keystore if you
+don't have one); how to obtain each is in `docs/android-release.md`. The
+release job runs `scripts/check-android-secrets.sh` first and fails with the
+names of anything missing before it starts a build.
 
 iOS: `IOS_DIST_CERTIFICATE_P12`, `IOS_DIST_CERTIFICATE_PASSWORD`,
 `IOS_DIST_PROVISIONING_PROFILE_BASE64`, `IOS_TEAM_ID`,
