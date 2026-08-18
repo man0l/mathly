@@ -20,7 +20,9 @@ command -v gh >/dev/null || {
   exit 1
 }
 
-# keytool comes with any JDK; on macOS it is also bundled inside Android Studio.
+# A keystore is just a PKCS#12 file, so either keytool or openssl can make one.
+# keytool ships with any JDK and is also bundled inside Android Studio; openssl
+# is preinstalled on macOS, so nothing has to be installed to get an upload key.
 if ! command -v keytool >/dev/null; then
   for candidate in \
     "/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/keytool" \
@@ -31,9 +33,60 @@ if ! command -v keytool >/dev/null; then
     fi
   done
 fi
-command -v keytool >/dev/null || {
-  echo "error: keytool not found — 'brew install --cask temurin@17', or install any JDK 17" >&2
+
+if command -v keytool >/dev/null; then
+  KEYSTORE_TOOL=keytool
+elif command -v openssl >/dev/null; then
+  KEYSTORE_TOOL=openssl
+else
+  echo "error: need either keytool (any JDK) or openssl to build the keystore" >&2
   exit 1
+fi
+echo "Keystore tool: $KEYSTORE_TOOL"
+
+generate_keystore() {       # file alias password
+  if [[ "$KEYSTORE_TOOL" == keytool ]]; then
+    keytool -genkeypair -v \
+      -keystore "$1" -storetype PKCS12 \
+      -alias "$2" -keyalg RSA -keysize 2048 -validity 10000 \
+      -storepass "$3" -keypass "$3" \
+      -dname "CN=$PACKAGE_NAME, OU=Mathly, O=BalkanBit, C=BG"
+    return
+  fi
+  local key cert
+  key="$(mktemp)"; cert="$(mktemp)"
+  openssl req -x509 -newkey rsa:2048 -sha256 -days 10000 -nodes \
+    -keyout "$key" -out "$cert" \
+    -subj "/CN=$PACKAGE_NAME/OU=Mathly/O=BalkanBit/C=BG" 2>/dev/null
+  # Prefer modern PBE; LibreSSL builds that reject these flags fall back to
+  # their defaults, which Java still reads.
+  openssl pkcs12 -export -inkey "$key" -in "$cert" -name "$2" -out "$1" \
+    -passout pass:"$3" -keypbe AES-256-CBC -certpbe AES-256-CBC -macalg sha256 2>/dev/null \
+    || openssl pkcs12 -export -inkey "$key" -in "$cert" -name "$2" -out "$1" \
+         -passout pass:"$3"
+  rm -f "$key" "$cert"
+}
+
+verify_keystore() {         # file alias password
+  if [[ "$KEYSTORE_TOOL" == keytool ]]; then
+    keytool -list -keystore "$1" -storetype PKCS12 -storepass "$3" -alias "$2" >/dev/null 2>&1
+  else
+    openssl pkcs12 -in "$1" -nokeys -passin pass:"$3" >/dev/null 2>&1
+  fi
+}
+
+print_fingerprints() {      # file alias password
+  if [[ "$KEYSTORE_TOOL" == keytool ]]; then
+    keytool -list -v -keystore "$1" -storetype PKCS12 -storepass "$3" -alias "$2" \
+      | grep -E 'SHA1:|SHA256:' || true
+    return
+  fi
+  local cert
+  cert="$(mktemp)"
+  openssl pkcs12 -in "$1" -nokeys -passin pass:"$3" > "$cert" 2>/dev/null
+  openssl x509 -in "$cert" -noout -fingerprint -sha1
+  openssl x509 -in "$cert" -noout -fingerprint -sha256
+  rm -f "$cert"
 }
 
 gh auth status >/dev/null 2>&1 || { echo "error: run 'gh auth login' first" >&2; exit 1; }
@@ -77,15 +130,11 @@ else
   KEY_ALIAS="${KEY_ALIAS:-upload}"
   prompt_secret KEYSTORE_PASSWORD "New keystore password (min 6 chars)"
   KEY_PASSWORD="$KEYSTORE_PASSWORD"
-  keytool -genkeypair -v \
-    -keystore "$KEYSTORE_FILE" -storetype PKCS12 \
-    -alias "$KEY_ALIAS" -keyalg RSA -keysize 2048 -validity 10000 \
-    -storepass "$KEYSTORE_PASSWORD" -keypass "$KEY_PASSWORD" \
-    -dname "CN=$PACKAGE_NAME, OU=Mathly, O=BalkanBit, C=BG"
+  generate_keystore "$KEYSTORE_FILE" "$KEY_ALIAS" "$KEYSTORE_PASSWORD"
   echo "Created $KEYSTORE_FILE"
 fi
 
-keytool -list -keystore "$KEYSTORE_FILE" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null \
+verify_keystore "$KEYSTORE_FILE" "$KEY_ALIAS" "$KEYSTORE_PASSWORD" \
   || { echo "error: password/alias do not open $KEYSTORE_FILE" >&2; exit 1; }
 
 # --- 2. Play service account -------------------------------------------------
@@ -122,7 +171,6 @@ set_secret EXPO_PUBLIC_REVENUECAT_KEY "$REVENUECAT_KEY"
 
 echo
 echo "Done. Upload-key certificate fingerprints (give these to Play if asked):"
-keytool -list -v -keystore "$KEYSTORE_FILE" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" \
-  | grep -E 'SHA1:|SHA256:' || true
+print_fingerprints "$KEYSTORE_FILE" "$KEY_ALIAS" "$KEYSTORE_PASSWORD"
 echo
 echo "Next: gh workflow run android-release.yml --repo $REPO"

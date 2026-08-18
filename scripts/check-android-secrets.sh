@@ -49,20 +49,37 @@ if sa["type"] != "service_account":
   fi
 fi
 
-if [[ -n "${ANDROID_KEYSTORE_BASE64:-}" ]] && command -v keytool >/dev/null 2>&1; then
+# CI always has keytool via setup-java; openssl keeps this runnable on a Mac
+# with no JDK installed.
+if command -v keytool >/dev/null 2>&1; then
+  keystore_check=keytool
+elif command -v openssl >/dev/null 2>&1; then
+  keystore_check=openssl
+else
+  keystore_check=""
+fi
+
+if [[ -n "${ANDROID_KEYSTORE_BASE64:-}" && -n "$keystore_check" ]]; then
   tmp_keystore="$(mktemp)"
   trap 'rm -f "$tmp_keystore"' EXIT
   if ! echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$tmp_keystore" 2>/dev/null; then
     missing+=("ANDROID_KEYSTORE_BASE64 (not valid base64)")
     echo "  MALFORMED ANDROID_KEYSTORE_BASE64 — re-encode with: base64 -w0 upload-keystore.p12"
   elif [[ -n "${ANDROID_KEYSTORE_PASSWORD:-}" && -n "${ANDROID_KEY_ALIAS:-}" ]]; then
-    if ! keytool -list -keystore "$tmp_keystore" \
+    if [[ "$keystore_check" == keytool ]]; then
+      keytool -list -keystore "$tmp_keystore" -storetype PKCS12 \
         -storepass "$ANDROID_KEYSTORE_PASSWORD" \
-        -alias "$ANDROID_KEY_ALIAS" >/dev/null 2>&1; then
+        -alias "$ANDROID_KEY_ALIAS" >/dev/null 2>&1
+    else
+      # openssl can prove the password opens the store, but not the alias.
+      openssl pkcs12 -in "$tmp_keystore" -nokeys \
+        -passin pass:"$ANDROID_KEYSTORE_PASSWORD" >/dev/null 2>&1
+    fi
+    if (( $? != 0 )); then
       missing+=("keystore/password/alias mismatch")
       echo "  MISMATCH ANDROID_KEYSTORE_PASSWORD or ANDROID_KEY_ALIAS does not open the keystore"
     else
-      echo "  ok       keystore opens with the given password + alias"
+      echo "  ok       keystore opens with the given password${keystore_check:+ (checked with $keystore_check)}"
     fi
   fi
 fi

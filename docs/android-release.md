@@ -31,16 +31,36 @@ bash scripts/setup-android-secrets.sh
 ### On macOS
 
 ```bash
-brew install gh                      # GitHub CLI
-brew install --cask temurin@17       # provides keytool (skip if you have Android Studio)
-gh auth login
+brew install gh && gh auth login
 
 git fetch origin && git checkout claude/android-ci-credentials-2ub7xk
 bash scripts/setup-android-secrets.sh
 ```
 
-The script finds Android Studio's bundled `keytool` automatically, and works
-with the stock macOS bash 3.2 and BSD `base64`.
+**No JDK required.** A keystore is just a PKCS#12 file, so the script builds it
+with `openssl` — preinstalled on macOS — when no `keytool` is around. If you do
+have a JDK, or Android Studio (whose bundled `keytool` the script finds on its
+own), it uses that instead. Both produce a byte-compatible keystore; Gradle and
+Play cannot tell them apart. The script also works with the stock macOS bash
+3.2 and BSD `base64`.
+
+To build the keystore by hand with no Java at all:
+
+```bash
+openssl req -x509 -newkey rsa:2048 -sha256 -days 10000 -nodes \
+  -keyout key.pem -out cert.pem \
+  -subj "/CN=com.balkanbit.mathly/OU=Mathly/O=BalkanBit/C=BG"
+
+openssl pkcs12 -export -inkey key.pem -in cert.pem \
+  -name upload -out upload-keystore.p12 \
+  -keypbe AES-256-CBC -certpbe AES-256-CBC -macalg sha256
+
+rm key.pem cert.pem          # the .p12 now holds the key; back it up
+```
+
+The alias is whatever you pass to `-name` (`upload` above), and the export
+password becomes both `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_PASSWORD` —
+PKCS#12 uses one password for the store and the key.
 
 ### Without a terminal
 
@@ -68,6 +88,8 @@ keytool -genkeypair -v \
   -alias upload -keyalg RSA -keysize 2048 -validity 10000 \
   -dname "CN=com.balkanbit.mathly, OU=Mathly, O=BalkanBit, C=BG"
 ```
+
+(Or the `openssl` equivalent under "On macOS" below, if you have no JDK.)
 
 Keep `upload-keystore.p12` out of the repo (back it up in a password manager),
 then set the four secrets:
