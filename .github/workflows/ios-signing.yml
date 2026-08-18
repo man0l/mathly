@@ -15,6 +15,8 @@ on:
         options:
           - verify-signing
           - testflight-release
+          - app-store-metadata
+          - app-store-preflight
       certificate:
         description: "Certificate to verify (verify-signing job only)"
         required: false
@@ -57,6 +59,46 @@ jobs:
         if: always()
         run: security delete-keychain build.keychain || true
 
+  # Writes the App Store description (with the Terms of Use link Apple's
+  # automated 3.1.2 check scans) and the custom EULA into App Store Connect.
+  # Run this before every submission — editing docs/ alone changes nothing
+  # that the review sees.
+  app-store-metadata:
+    if: inputs.job == 'app-store-metadata'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Push listing metadata to App Store Connect
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        run: node scripts/app-store-metadata.mjs --push
+
+  # Audits the live App Store Connect listing against what Apple's pre-review
+  # automation rejects for. Run it right before hitting Submit for Review.
+  app-store-preflight:
+    if: inputs.job == 'app-store-preflight'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Audit the listing
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        run: node scripts/app-store-metadata.mjs --preflight
+
   testflight-release:
     if: inputs.job == 'testflight-release'
     runs-on: macos-26
@@ -75,6 +117,16 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # Without the RevenueCat key the paywall has no products to sell: the
+      # reviewer taps Subscribe, no purchase sheet appears, and that is a
+      # Guideline 2.1 rejection. Fail here instead of at review.
+      - name: Require the RevenueCat key
+        run: |
+          if [ -z "$EXPO_PUBLIC_REVENUECAT_IOS_KEY" ] && [ -z "$EXPO_PUBLIC_REVENUECAT_KEY" ]; then
+            echo "::error::No RevenueCat key. Set EXPO_PUBLIC_REVENUECAT_IOS_KEY before building for the App Store."
+            exit 1
+          fi
 
       - name: Create temporary keychain
         run: |

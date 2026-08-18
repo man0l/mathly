@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -8,11 +8,14 @@ import { CheckIcon, CrownIcon } from '../components/icons';
 import { openLegalLink } from '../lib/links';
 import {
   configurePurchases,
+  fetchPlanOffers,
   purchasesAvailable,
   purchasePro,
   restorePurchases,
   simulatePurchase,
+  simulationAllowed,
   type PlanId,
+  type PlanOffer,
 } from '../lib/purchases';
 import { colors, radius, typography } from '../theme/tokens';
 import { useApp } from '../state/AppProvider';
@@ -28,22 +31,91 @@ const FEATURES = [
 type Plan = {
   id: PlanId;
   title: string;
+  /** Length of the billing period, spelled out — Apple requires it on screen. */
+  period: string;
   price: string;
-  per: string;
+  /** Optional second line, e.g. the yearly plan's per-week equivalent. */
+  per: string | null;
   badge: string | null;
-  trial: string | null;
+  trialDays: number | null;
 };
 
+/**
+ * Fallback copy, used until the store answers (and on web). It must stay in
+ * step with App Store Connect — `npm run metadata:preflight` compares the two.
+ */
 const PLANS: Plan[] = [
-  { id: 'yearly', title: 'Yearly', price: '$39.99', per: '$0.77 / week', badge: 'SAVE 89%', trial: '3 days free' },
-  { id: 'weekly', title: 'Weekly', price: '$6.99', per: 'billed every week', badge: null, trial: null },
+  {
+    id: 'yearly',
+    title: 'Yearly',
+    period: 'year',
+    price: '$39.99',
+    per: '$0.77 / week',
+    badge: 'SAVE 89%',
+    trialDays: 3,
+  },
+  {
+    id: 'weekly',
+    title: 'Weekly',
+    period: 'week',
+    price: '$6.99',
+    per: null,
+    badge: null,
+    trialDays: null,
+  },
 ];
+
+/** Merge the live store prices over the fallback copy. */
+function withOffers(offers: Partial<Record<PlanId, PlanOffer>>): Plan[] {
+  return PLANS.map((p) => {
+    const offer = offers[p.id];
+    if (!offer) return p;
+    return {
+      ...p,
+      price: offer.priceString,
+      per: offer.perWeek ? `${offer.perWeek} / week` : p.per,
+      trialDays: offer.trialDays,
+    };
+  });
+}
+
+/**
+ * Guideline 3.1.2 wants the binary itself to state what is being bought: the
+ * subscription's name, its length, its price, and that it renews on its own.
+ */
+function disclosure(plan: Plan): string {
+  const trial = plan.trialDays
+    ? `The first ${plan.trialDays} days are free; after that it costs ${plan.price} and `
+    : `It costs ${plan.price} and `;
+  return (
+    `Mathly Pro is an auto-renewing subscription. ${trial}renews automatically every ` +
+    `${plan.period} unless you cancel at least 24 hours before the period ends. ` +
+    'Manage or cancel it anytime in your App Store settings.'
+  );
+}
 
 export function PaywallScreen() {
   const { setPro } = useApp();
   const [plan, setPlan] = useState<PlanId>('yearly');
   const [loading, setLoading] = useState(false);
-  const [showTestPurchase, setShowTestPurchase] = useState(!purchasesAvailable);
+  const [plans, setPlans] = useState<Plan[]>(PLANS);
+  const [showTestPurchase, setShowTestPurchase] = useState(simulationAllowed && !purchasesAvailable);
+  const selected = plans.find((p) => p.id === plan) ?? plans[0];
+
+  // Prices come from the store so the paywall can never quote a figure App
+  // Store Connect has moved on from, or dollars to a non-US storefront.
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      if (!purchasesAvailable) return;
+      await configurePurchases();
+      const offers = await fetchPlanOffers();
+      if (live && Object.keys(offers).length) setPlans(withOffers(offers));
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
 
   const start = async () => {
     setLoading(true);
@@ -52,9 +124,13 @@ export function PaywallScreen() {
       if (purchasesAvailable) {
         const ok = await purchasePro(plan);
         if (ok) await setPro(true);
-      } else {
+      } else if (simulationAllowed) {
         // Web/dev: simulate the purchase flow like the RC test store would.
         setShowTestPurchase(true);
+      } else {
+        // A shipped build with no store connection: say so rather than leaving
+        // the button dead, which reads as a broken app in review.
+        Alert.alert('Subscriptions unavailable', 'The App Store could not be reached. Please try again in a moment.');
       }
     } catch (e) {
       console.warn('purchase failed', e);
@@ -88,11 +164,11 @@ export function PaywallScreen() {
               Your tutor is ready.
             </Text>
             <Text style={[typography.bodySecondary, { textAlign: 'center', marginTop: 10 }]}>
-              Start your free trial today. Cancel anytime.
+              Mathly Pro — an auto-renewing subscription. Cancel anytime.
             </Text>
           </View>
 
-          <View style={{ gap: 14 }}>
+          <View style={{ gap: 11 }}>
             {FEATURES.map((f) => (
               <View key={f} style={styles.featureRow}>
                 <View style={styles.featureCheck}>
@@ -104,7 +180,7 @@ export function PaywallScreen() {
           </View>
 
           <View style={styles.plans}>
-            {PLANS.map((p) => {
+            {plans.map((p) => {
               const on = plan === p.id;
               return (
                 <Pressable
@@ -116,7 +192,11 @@ export function PaywallScreen() {
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={typography.h3}>{p.title}</Text>
-                    <Text style={typography.small}>{p.per}</Text>
+                    <Text style={typography.small}>
+                      {p.trialDays ? `${p.trialDays} days free, then ` : ''}
+                      {p.price} / {p.period}
+                    </Text>
+                    {p.per ? <Text style={typography.small}>{p.per}</Text> : null}
                   </View>
                   <Text style={[typography.h2, { fontFamily: 'SpaceGrotesk_700Bold' }]}>{p.price}</Text>
                   {p.badge ? (
@@ -131,7 +211,7 @@ export function PaywallScreen() {
 
           <Button
             testID="paywall-start"
-            label={plan === 'yearly' ? 'Start 3-day free trial' : 'Continue'}
+            label={selected.trialDays ? `Start ${selected.trialDays}-day free trial` : 'Subscribe'}
             onPress={start}
             loading={loading}
             style={{ marginTop: 10 }}
@@ -170,8 +250,8 @@ export function PaywallScreen() {
               <Text style={styles.legalText}>Privacy</Text>
             </Pressable>
           </View>
-          <Text style={[typography.small, { textAlign: 'center', marginTop: 8 }]}>
-            No charge during your trial. Cancel anytime in your store settings.
+          <Text style={[typography.small, { textAlign: 'center', marginTop: 8, lineHeight: 17 }]}>
+            {disclosure(selected)}
           </Text>
         </ScrollView>
       </SafeAreaView>
@@ -181,9 +261,9 @@ export function PaywallScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  scroll: { paddingHorizontal: 24, paddingBottom: 24, gap: 30 },
-  hero: { alignItems: 'center', paddingTop: 26, gap: 4 },
-  featureRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  scroll: { paddingHorizontal: 24, paddingBottom: 20, gap: 22 },
+  hero: { alignItems: 'center', paddingTop: 14, gap: 4 },
+  featureRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   featureCheck: {
     width: 24,
     height: 24,

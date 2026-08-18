@@ -21,6 +21,7 @@ signed `.aab` (Play internal track) and TestFlight builds.
 | CI | `.github/workflows/android-release.yml`, `.github/workflows/ios-signing.yml` |
 | Store listing copy | `docs/store-listing.md` |
 | Privacy policy | `docs/privacy-policy.md` |
+| App Store listing metadata | `docs/app-store-metadata/en-US/` → `npm run metadata:push` |
 
 ## Product flow
 
@@ -128,5 +129,9 @@ iOS: `IOS_DIST_CERTIFICATE_P12`, `IOS_DIST_CERTIFICATE_PASSWORD`,
 - [ ] Screenshots: `docs/app-store-screenshots/` (6.5", 6.9", Play phone)
 - [ ] Preview video: `docs/app-store-screenshots/preview/app-preview-886x1920.mp4`
 - [ ] Host `docs/privacy-policy.md` at a public URL and set it in Settings
+- [ ] `npm run metadata:push` — App Store description (with the Terms of Use
+      link Guideline 3.1.2 requires) + custom EULA into App Store Connect
+- [ ] `npm run screenshots:paywall` — review screenshot for each subscription
+- [ ] `npm run metadata:preflight` — audit the live listing before submitting
       (`openLink` in `src/screens/SettingsScreen.tsx`)
 - [ ] Bump `versionCode` / build numbers happen automatically in CI

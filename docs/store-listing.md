@@ -8,37 +8,12 @@
 
 **Promotional text:** Your AI tutor now explains graphs, too.
 
-**Description:**
-
-Stuck on a math problem? Take a photo. Mathly reads it — handwriting included —
-and solves it with clear, step-by-step explanations you can actually follow.
-
-WHY STUDENTS USE MATHLY
-
-• Snap to solve — point your camera at any equation, word problem, or graph
-• Every step explained — reveal one step at a time so you learn, not just copy
-• Verified answers — each solution is checked before you see it
-• See the math — automatic graphs show what the answer means
-• Ask anything — follow-up questions on any problem until it clicks
-• Every subject — algebra, calculus, geometry, statistics, physics, chemistry
-• Personalized to you — your level, your goal, your explanation style
-• Your history — every solved problem saved and searchable by day
-
-MATHLY ADAPTS TO YOU
-Tell Mathly your level and how you like explanations — quick answer first,
-step by step, visual, or real-world examples — and it tunes every answer to
-match. Watching where you usually get stuck, it explains those spots more
-carefully.
-
-FROM FIRST GLANCE TO FULL UNDERSTANDING
-Scan → see the method → reveal each step at your pace → check the graph →
-ask "why the ±?" → practice. That's one Mathly session.
-
-Privacy: photos you scan are used only to solve your problem. Delete all your
-data anytime from Settings.
-
-Terms of Use (EULA): https://www.balkanbit.app/mathly/terms
-Privacy Policy: https://www.balkanbit.app/mathly/privacy-policy
+**Description:** the exact text lives in
+`docs/app-store-metadata/en-US/description.txt` — it is what
+`npm run metadata:push` writes into App Store Connect, so edit it there rather
+than copying the copy around. It ends with the Terms of Use (EULA) and Privacy
+Policy links that Apple's automated Guideline 3.1.2 check scans for; removing
+them fails `npm run metadata:check` and the CI quality job.
 
 **Keywords:** math, solver, tutor, algebra, calculus, homework, scan, step by step, camera, physics, chemistry, statistics, graphing, study, education
 
@@ -50,7 +25,7 @@ Privacy Policy: https://www.balkanbit.app/mathly/privacy-policy
 
 **App name:** Mathly — AI Math Tutor
 **Short description:** Snap any math problem. Get verified, step-by-step help.
-**Full description:** *(same body as App Store description above)*
+**Full description:** same text — `docs/app-store-metadata/en-US/description.txt`
 
 **Category:** Education
 **Content rating:** PEGI 3 / Everyone
