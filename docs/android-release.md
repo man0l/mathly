@@ -83,8 +83,16 @@ by design. Never put the OpenAI key (or any other server secret) here.
 
 ```bash
 gh secret list                                  # names only; values are write-only
-gh workflow run android-release.yml             # dispatch the release job
+
+# Dry run: checks every credential, builds nothing, publishes nothing.
+gh workflow run android-release.yml -f job=verify-credentials
+
+gh workflow run android-release.yml             # the real release (job=release)
 ```
+
+`verify-credentials` also runs as a gate on every release dispatch, so a
+missing or mistyped credential fails in well under a minute instead of after
+the Gradle build.
 
 The build fails fast if a credential is missing, malformed, or if the keystore
 password/alias don't open the keystore. To build without Play publishing (for a

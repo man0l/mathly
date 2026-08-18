@@ -50,7 +50,7 @@ while True:
     if not batch.get("artifacts"):
         break
     artifacts.extend(
-        a for a in batch["artifacts"] if a["name"].startswith("looxmaxxing-play-") and not a["expired"]
+        a for a in batch["artifacts"] if a["name"].startswith("mathly-play-") and not a["expired"]
     )
     if len(batch["artifacts"]) < 100:
         break
