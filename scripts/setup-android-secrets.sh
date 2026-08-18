@@ -15,8 +15,27 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 KEYSTORE_FILE="${KEYSTORE_FILE:-$ROOT_DIR/upload-keystore.p12}"
 PACKAGE_NAME="${ANDROID_PACKAGE_NAME:-com.balkanbit.mathly}"
 
-command -v gh >/dev/null || { echo "error: GitHub CLI (gh) is required — https://cli.github.com" >&2; exit 1; }
-command -v keytool >/dev/null || { echo "error: keytool is required (install a JDK 17)" >&2; exit 1; }
+command -v gh >/dev/null || {
+  echo "error: GitHub CLI (gh) is required — 'brew install gh', or https://cli.github.com" >&2
+  exit 1
+}
+
+# keytool comes with any JDK; on macOS it is also bundled inside Android Studio.
+if ! command -v keytool >/dev/null; then
+  for candidate in \
+    "/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/keytool" \
+    "$HOME/Library/Java/JavaVirtualMachines"/*/Contents/Home/bin/keytool; do
+    if [[ -x "$candidate" ]]; then
+      PATH="$(dirname "$candidate"):$PATH"
+      break
+    fi
+  done
+fi
+command -v keytool >/dev/null || {
+  echo "error: keytool not found — 'brew install --cask temurin@17', or install any JDK 17" >&2
+  exit 1
+}
+
 gh auth status >/dev/null 2>&1 || { echo "error: run 'gh auth login' first" >&2; exit 1; }
 
 REPO="${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}"
@@ -76,8 +95,12 @@ SA_JSON=""
 if [[ -n "$SA_PATH" ]]; then
   SA_PATH="${SA_PATH/#\~/$HOME}"
   [[ -f "$SA_PATH" ]] || { echo "error: $SA_PATH not found" >&2; exit 1; }
-  python3 -c 'import json,sys; sa=json.load(open(sys.argv[1])); assert sa["type"]=="service_account"; assert sa["client_email"] and sa["private_key"]' "$SA_PATH" \
-    || { echo "error: $SA_PATH is not a service-account key file" >&2; exit 1; }
+  if command -v python3 >/dev/null; then
+    python3 -c 'import json,sys; sa=json.load(open(sys.argv[1])); assert sa["type"]=="service_account"; assert sa["client_email"] and sa["private_key"]' "$SA_PATH" \
+      || { echo "error: $SA_PATH is not a service-account key file" >&2; exit 1; }
+  else
+    echo "note: python3 not found — skipping the JSON sanity check (CI re-checks it)"
+  fi
   SA_JSON="$(cat "$SA_PATH")"
 fi
 

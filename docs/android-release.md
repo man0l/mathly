@@ -15,12 +15,42 @@ ones that are missing.
 | `EXPO_PUBLIC_API_BASE_URL` | backend URL baked into the JS bundle | your Vercel deployment |
 | `EXPO_PUBLIC_REVENUECAT_KEY` | RevenueCat **Android** SDK key (`goog_…`) | RevenueCat → Project → API keys |
 
+These have to be added by you, from a machine you're signed in on: Actions
+secrets are write-only and settable only by a repo admin, and two of the values
+(the Play service account and the RevenueCat key) don't exist anywhere yet —
+they have to be minted from your Google and RevenueCat accounts first.
+
 The fastest path is the helper script, which generates the keystore if you
 don't have one and pushes every value with `gh secret set` (nothing is echoed
 to the terminal):
 
 ```bash
 bash scripts/setup-android-secrets.sh
+```
+
+### On macOS
+
+```bash
+brew install gh                      # GitHub CLI
+brew install --cask temurin@17       # provides keytool (skip if you have Android Studio)
+gh auth login
+
+git fetch origin && git checkout claude/android-ci-credentials-2ub7xk
+bash scripts/setup-android-secrets.sh
+```
+
+The script finds Android Studio's bundled `keytool` automatically, and works
+with the stock macOS bash 3.2 and BSD `base64`.
+
+### Without a terminal
+
+Everything except the keystore can be pasted straight into
+**GitHub → Settings → Secrets and variables → Actions → New repository
+secret**. Only `ANDROID_KEYSTORE_BASE64` needs a shell, because it is the
+base64 of a binary file:
+
+```bash
+base64 -i upload-keystore.p12 | tr -d '\n' | pbcopy   # now Cmd-V into the web form
 ```
 
 Everything below is what that script automates, in case you'd rather do it by
