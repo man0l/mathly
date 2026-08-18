@@ -13,7 +13,9 @@
     "test:e2e": "playwright test",
     "screenshots": "node scripts/app-store-screenshots/capture-and-compose.mjs",
     "demo": "node scripts/app-store-screenshots/capture-preview-video.mjs",
-    "assets": "node scripts/generate-assets.mjs"
+    "assets": "node scripts/generate-assets.mjs",
+    "metadata:check": "node scripts/app-store-metadata.mjs --check",
+    "metadata:push": "node scripts/app-store-metadata.mjs --push"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

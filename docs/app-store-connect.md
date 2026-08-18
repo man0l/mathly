@@ -11,7 +11,9 @@ Connect record. Budget ~1 hour the first time; most steps are one-off.
 - Listing copy: `docs/store-listing.md`
 - Screenshots: `docs/app-store-screenshots/en-US/` (6.5") and `en-US-6.9in/` (6.9")
 - Preview video: `docs/app-store-screenshots/preview/app-preview-886x1920.mp4`
-- Privacy policy text: `docs/privacy-policy.md` (host it — step 6)
+- Listing text pushed by script: `docs/app-store-metadata/en-US/`
+  (`description.txt` + `eula.txt`) → `npm run metadata:push`
+- Privacy policy text: `docs/privacy-policy.md` (hosted — step 6)
 - API backend: https://aimathapp.vercel.app (already live)
 
 Bundle ID: **com.balkanbit.mathly** · App name: **Mathly**
@@ -89,17 +91,48 @@ Mathly's paywall is RevenueCat-backed. On Hobby-simple path:
    (Without it the app still builds; the paywall falls back to the simulated
    purchase flow — fine for TestFlight smoke tests, not for release.)
 
-## 6. Host the privacy policy
+## 6. Legal pages (already hosted)
 
-Apple requires a public URL. Quickest: push `docs/privacy-policy.md` to the
-GitHub repo and use the raw-gist trick or any static host, e.g.:
+Apple requires public URLs for both the privacy policy and — because Mathly
+sells auto-renewable subscriptions — the Terms of Use (EULA). Both are live on
+the balkanbit site and are what the app opens from Settings and the paywall:
 
-- gist.github.com → new gist from `privacy-policy.md` → use its raw URL, or
-- deploy it on the Vercel project (drop it in `public/privacy.md` →
-  `https://aimathapp.vercel.app/privacy.md`).
+| Page | URL | Source |
+| --- | --- | --- |
+| Terms of Use (EULA) | https://www.balkanbit.app/mathly/terms | `docs/app-store-metadata/en-US/eula.txt` |
+| Privacy Policy | https://www.balkanbit.app/mathly/privacy-policy | `docs/privacy-policy.md` |
 
-Then also set the URL in the app: `src/screens/SettingsScreen.tsx`
-(`openLink()` is a stub — point it at the hosted URL).
+`src/lib/links.ts` is the single source of these URLs for the app; the metadata
+script reads the same file, so the listing can never point somewhere the app
+does not.
+
+## 6a. Push the listing metadata (do this before every submission)
+
+Guideline 3.1.2 rejects a subscription app whose metadata has no functional
+Terms of Use link. Two fields carry it, and neither is part of the build:
+
+```bash
+npm run metadata:check   # copy + live-link verification, no credentials needed
+npm run metadata:push    # writes it into App Store Connect
+```
+
+or GitHub → Actions → **iOS Signing Setup** → job `app-store-metadata`
+(same App Store Connect API secrets as the TestFlight upload).
+
+The push sets:
+
+1. the **App Store description** from `docs/app-store-metadata/en-US/description.txt`
+   — it ends with the Terms of Use and Privacy Policy URLs, which is the text
+   the automated 3.1.2 check scans;
+2. the **privacy policy URL** on App Information;
+3. the **custom EULA** from `docs/app-store-metadata/en-US/eula.txt`, for all
+   territories. That field stores agreement *text*, not a URL — pasting a link
+   into it does not satisfy the check.
+
+The version has to be editable (Prepare for Submission / Rejected). If a build
+is sitting in Waiting for Review, reject it in App Store Connect first — the
+script says so instead of failing obscurely. It also refuses to push if either
+legal URL does not return a live page.
 
 ## 7. Create the app record + build
 
@@ -119,11 +152,12 @@ App Store Connect → your app → **Version 1.0.0**:
 | Field | Value |
 | --- | --- |
 | What's New | `First release.` |
-| Description / promo / keywords | copy from `docs/store-listing.md` |
+| Description | pushed by `npm run metadata:push` (step 6a) — do not retype it |
+| Promo text / keywords | copy from `docs/store-listing.md` |
 | Screenshots | drag in all 6 from `en-US-6.9in/` (6.5" auto-fills) |
 | App Preview | `app-preview-886x1920.mp4` |
-| Privacy Policy URL | hosted URL from step 6 |
-| Terms of Use (EULA) | custom EULA: set App Information → Terms of Use → `https://www.balkanbit.app/mathly/terms`, **and** keep the link in the Description (below) — the automated 3.1.2 check scans the Description |
+| Privacy Policy URL | set by `npm run metadata:push` (step 6a) |
+| Terms of Use (EULA) | both are set by `npm run metadata:push` (step 6a) — the link inside the Description (what the automated 3.1.2 check scans) and the custom EULA on App Information. Note the EULA field takes agreement **text**, not a URL |
 | Support URL | your site or `https://github.com/man0l/mathly` |
 | Category | Education (secondary: Productivity) |
 | Age Rating | answer quiz → 4+ (no user content, no web browsing) |
@@ -139,15 +173,18 @@ Then **Submit for Review**. Typical first-review turnaround: 24–48h.
 - ✅ Camera purpose strings (`NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`)
 - ✅ Privacy manifest + `ITSAppUsesNonExemptEncryption=false`
 - ✅ Paywall shows price + trial terms; Restore button present
-- ✅ Terms of Use (EULA) link in the App Store Description + custom EULA URL
-  in App Information (3.1.2 automated check) — links live at
-  `balkanbit.app/mathly/terms` / `/privacy-policy`
+- ✅ Terms of Use (EULA) link in the App Store Description + custom EULA text
+  in App Information (3.1.2 automated check) — written by
+  `npm run metadata:push`, verified live by `npm run metadata:check`.
+  **Run the push before every submission**: editing `docs/` changes nothing
+  that review sees, which is exactly how the first 3.1.2 rejection happened.
 - ✅ No signup wall — app usable (scan + solve) after onboarding
 - ⚠️ **Sign in required? No.** Leave as-is.
 - ⚠️ If IAP products are missing/invalid in App Store Connect (step 5), review
   will reject with Guideline 2.1 — do step 5 before submitting.
-- ⚠️ Screens with `docs/…` relative copy — make sure the hosted privacy URL
-  works publicly (not behind GitHub login).
+- ⚠️ Metadata lives in App Store Connect, not in the build — a green CI run
+  does not mean the listing was updated. `npm run metadata:push` is the only
+  thing that changes what review reads.
 
 ## Parallel Play Store release (quick version)
 

@@ -15,6 +15,7 @@ on:
         options:
           - verify-signing
           - testflight-release
+          - app-store-metadata
       certificate:
         description: "Certificate to verify (verify-signing job only)"
         required: false
@@ -56,6 +57,27 @@ jobs:
       - name: Clean up keychain
         if: always()
         run: security delete-keychain build.keychain || true
+
+  # Writes the App Store description (with the Terms of Use link Apple's
+  # automated 3.1.2 check scans) and the custom EULA into App Store Connect.
+  # Run this before every submission — editing docs/ alone changes nothing
+  # that the review sees.
+  app-store-metadata:
+    if: inputs.job == 'app-store-metadata'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Push listing metadata to App Store Connect
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        run: node scripts/app-store-metadata.mjs --push
 
   testflight-release:
     if: inputs.job == 'testflight-release'
