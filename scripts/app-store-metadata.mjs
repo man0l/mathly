@@ -10,10 +10,11 @@
  *   1. the App Store description (what the automated check scans), and
  *   2. the custom EULA on App Information (agreement *text*, not a URL).
  *
- *   node scripts/app-store-metadata.mjs --check   # verify copy + links (no creds)
- *   node scripts/app-store-metadata.mjs --push    # write it to App Store Connect
+ *   node scripts/app-store-metadata.mjs --check      # copy + links (no creds)
+ *   node scripts/app-store-metadata.mjs --push       # write it to App Store Connect
+ *   node scripts/app-store-metadata.mjs --preflight  # audit the live listing
  *
- * --push needs the same secrets the TestFlight upload uses:
+ * --push and --preflight need the same secrets the TestFlight upload uses:
  *   APP_STORE_CONNECT_KEY_ID, APP_STORE_CONNECT_ISSUER_ID,
  *   APP_STORE_CONNECT_API_KEY_BASE64 (base64 of the .p8)
  */
@@ -73,9 +74,29 @@ async function urlIsFunctional(url) {
   return null;
 }
 
+/**
+ * Prices the paywall shows as its fallback copy. A figure the listing and the
+ * paywall disagree on is a rejection on its own, so they are compared here
+ * rather than discovered during review.
+ */
+function paywallPrices() {
+  const src = read('src/screens/PaywallScreen.tsx');
+  const plans = src.slice(src.indexOf('const PLANS'), src.indexOf('/** Merge the live store prices'));
+  return [...plans.matchAll(/price: '(\$[\d.]+)'/g)].map((m) => m[1]);
+}
+
 async function check({ offline = false } = {}) {
   const { description, eula, links } = metadata();
   const problems = [];
+
+  const prices = paywallPrices();
+  if (prices.length < 2) {
+    problems.push('could not read the fallback plan prices out of PaywallScreen.tsx');
+  }
+  for (const price of prices) {
+    if (!description.includes(price)) problems.push(`description does not mention the ${price} plan price shown on the paywall`);
+    if (!eula.includes(price)) problems.push(`EULA does not mention the ${price} plan price shown on the paywall`);
+  }
 
   if (description.length > MAX_DESCRIPTION) {
     problems.push(`description is ${description.length} chars (max ${MAX_DESCRIPTION})`);
@@ -108,6 +129,7 @@ async function check({ offline = false } = {}) {
     process.exit(1);
   }
   console.log(`  ok  description ${description.length} chars, EULA ${eula.length} chars`);
+  console.log(`  ok  paywall prices ${prices.join(', ')} match the description and EULA`);
   console.log('App Store metadata check passed.');
 }
 
@@ -256,10 +278,156 @@ async function push() {
   console.log('\nMetadata pushed. Submit for review from App Store Connect.');
 }
 
+
+/* ------------------------------- preflight ------------------------------ */
+
+/**
+ * Audit the live listing against what Apple's pre-review automation rejects
+ * for. Every check is independent and degrades to a warning if the API shape
+ * surprises us — a preflight that crashes tells you nothing.
+ */
+async function preflight() {
+  const { links } = metadata();
+  const call = client(token());
+  const results = [];
+  const record = (level, message) => results.push({ level, message });
+
+  const guard = async (label, fn) => {
+    try {
+      await fn();
+    } catch (err) {
+      record('warn', `${label}: could not verify (${err.message})`);
+    }
+  };
+
+  const apps = await call('GET', `/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`);
+  const app = apps.data[0];
+  if (!app) throw new Error(`no app record for ${BUNDLE_ID}`);
+  console.log(`App: ${app.attributes.name} (${app.id})\n`);
+
+  const versions = await call('GET', `/v1/apps/${app.id}/appStoreVersions?filter[platform]=IOS&limit=10`);
+  const version = versions.data.find((v) => EDITABLE_STATES.has(v.attributes.appStoreState)) ?? versions.data[0];
+  if (!version) throw new Error('the app has no iOS version yet');
+  record('ok', `version ${version.attributes.versionString} (${version.attributes.appStoreState})`);
+
+  // A version with no build attached cannot be submitted at all.
+  await guard('build', async () => {
+    const build = await call('GET', `/v1/appStoreVersions/${version.id}/build`);
+    if (build?.data) record('ok', `build ${build.data.attributes?.version ?? build.data.id} attached`);
+    else record('fail', 'no build attached to this version — upload one via the testflight-release job');
+  });
+
+  // 3.1.2: the description is what the automated check reads.
+  let versionLocale = null;
+  await guard('description', async () => {
+    const locales = await call('GET', `/v1/appStoreVersions/${version.id}/appStoreVersionLocalizations?limit=50`);
+    versionLocale = locales.data.find((l) => l.attributes.locale === LOCALE);
+    if (!versionLocale) return record('fail', `version has no ${LOCALE} localization`);
+    const live = versionLocale.attributes.description ?? '';
+    for (const key of ['terms', 'privacy']) {
+      if (live.includes(links[key])) record('ok', `description carries the ${key} link`);
+      else record('fail', `description is missing the ${key} link ${links[key]} — this is the 3.1.2 rejection; run --push`);
+    }
+    if ((versionLocale.attributes.supportUrl ?? '').trim()) record('ok', 'support URL set');
+    else record('fail', 'support URL is empty (required field)');
+  });
+
+  // 3.1.2: the custom EULA on App Information.
+  await guard('EULA', async () => {
+    const eula = await call('GET', `/v1/apps/${app.id}/endUserLicenseAgreement`);
+    const text = eula?.data?.attributes?.agreementText ?? '';
+    if (text.trim().length > 200) record('ok', `custom EULA present (${text.length} chars)`);
+    else record('fail', 'no custom EULA on App Information — run --push');
+  });
+
+  // 5.1.1: privacy policy URL.
+  await guard('privacy policy URL', async () => {
+    const appInfos = await call('GET', `/v1/apps/${app.id}/appInfos?limit=10`);
+    const appInfo = appInfos.data[0];
+    if (!appInfo) return record('warn', 'no App Information record found');
+    const locales = await call('GET', `/v1/appInfos/${appInfo.id}/appInfoLocalizations?limit=50`);
+    const infoLocale = locales.data.find((l) => l.attributes.locale === LOCALE);
+    const url = infoLocale?.attributes?.privacyPolicyUrl ?? '';
+    if (url) record('ok', `privacy policy URL set (${url})`);
+    else record('fail', 'privacy policy URL is empty — run --push');
+    const declaration = await call('GET', `/v1/appInfos/${appInfo.id}/ageRatingDeclaration`).catch(() => null);
+    if (declaration?.data) record('ok', 'age rating declaration filled in');
+    else record('warn', 'age rating declaration not verified — confirm the questionnaire is answered');
+  });
+
+  // 2.3.3: screenshots are a hard submission requirement.
+  await guard('screenshots', async () => {
+    if (!versionLocale) return;
+    const sets = await call('GET', `/v1/appStoreVersionLocalizations/${versionLocale.id}/appScreenshotSets?limit=20`);
+    const types = sets.data.map((s) => s.attributes.screenshotDisplayType);
+    if (types.length) record('ok', `screenshot sets: ${types.join(', ')}`);
+    else record('fail', 'no screenshots uploaded for this version');
+  });
+
+  // 2.1 / 3.1.2: the subscriptions themselves must be submittable, and each
+  // one needs its own review screenshot — the most commonly missed field.
+  await guard('subscriptions', async () => {
+    const groups = await call('GET', `/v1/apps/${app.id}/subscriptionGroups?limit=10`);
+    if (!groups.data.length) return record('fail', 'no subscription groups — review cannot see the products (2.1)');
+    const paywall = paywallPrices();
+    for (const group of groups.data) {
+      const subs = await call(
+        'GET',
+        `/v1/subscriptionGroups/${group.id}/subscriptions?limit=20&include=introductoryOffers`,
+      );
+      if (!subs.data.length) record('fail', `subscription group ${group.id} has no products`);
+      for (const sub of subs.data) {
+        const { name, productId, state } = sub.attributes;
+        const submittable = ['READY_TO_SUBMIT', 'APPROVED', 'WAITING_FOR_REVIEW', 'IN_REVIEW'];
+        if (submittable.includes(state)) record('ok', `${productId} — ${state}`);
+        else record('fail', `${productId} is ${state}; it will not be reviewed with the build (2.1)`);
+
+        await guard(`${productId} review screenshot`, async () => {
+          const shot = await call('GET', `/v1/subscriptions/${sub.id}/appStoreReviewScreenshot`);
+          if (shot?.data) record('ok', `${productId} has a review screenshot`);
+          else record('fail', `${productId} has no review screenshot — required before submission (npm run screenshots:paywall)`);
+        });
+
+        await guard(`${productId} price`, async () => {
+          const prices = await call(
+            'GET',
+            `/v1/subscriptions/${sub.id}/prices?include=subscriptionPricePoint&filter[territory]=USA&limit=10`,
+          );
+          const point = prices.included?.find((i) => i.type === 'subscriptionPricePoints');
+          const customerPrice = point?.attributes?.customerPrice;
+          if (!customerPrice) return record('warn', `${productId}: no US price returned to compare`);
+          const shown = `$${Number(customerPrice).toFixed(2)}`;
+          if (paywall.includes(shown)) record('ok', `${productId} US price ${shown} matches the paywall`);
+          else record('fail', `${productId} US price is ${shown}; the paywall's fallback copy says ${paywall.join(' / ')}`);
+        });
+
+        if (!name) record('warn', `${productId} has no display name`);
+      }
+    }
+  });
+
+  console.log('Preflight:');
+  const icon = { ok: '  ✓', warn: '  ⚠', fail: '  ✗' };
+  for (const r of results) console.log(`${icon[r.level]} ${r.message}`);
+
+  const failures = results.filter((r) => r.level === 'fail');
+  const warnings = results.filter((r) => r.level === 'warn');
+  console.log(
+    `\n${failures.length} blocking, ${warnings.length} to confirm by hand, ` +
+      `${results.length - failures.length - warnings.length} passing.`,
+  );
+  if (failures.length) {
+    console.error('\nSubmitting like this invites a rejection. Fix the ✗ items first.');
+    process.exit(1);
+  }
+  console.log('Nothing Apple checks automatically is missing. Good to submit.');
+}
+
 const args = process.argv.slice(2);
-const mode = args.find((a) => a === '--push' || a === '--check') ?? '--check';
+const mode = args.find((a) => a === '--push' || a === '--check' || a === '--preflight') ?? '--check';
 try {
   if (mode === '--push') await push();
+  else if (mode === '--preflight') await preflight();
   else await check({ offline: args.includes('--offline') });
 } catch (err) {
   console.error(`\n${err.message}`);

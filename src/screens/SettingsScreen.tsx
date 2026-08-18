@@ -11,7 +11,7 @@ import { useApp } from '../state/AppProvider';
 
 export function SettingsScreen() {
   const navigation = useAppNavigation();
-  const { profile, isPro, solutions, resetAll } = useApp();
+  const { profile, isPro, solutions, resetAll, setPro } = useApp();
   const [restoring, setRestoring] = useState(false);
 
   const confirmReset = () => {
@@ -67,21 +67,24 @@ export function SettingsScreen() {
             >
               <Text style={[typography.button, { color: '#fff' }]}>Start free trial</Text>
             </Pressable>
-          ) : (
-            <Pressable
-              onPress={async () => {
-                setRestoring(true);
-                await restorePurchases();
-                setRestoring(false);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Restore purchases"
-            >
-              <Text style={[typography.caption, { marginTop: 12 }]}>
-                {restoring ? 'Restoring…' : 'Restore purchases'}
-              </Text>
-            </Pressable>
-          )}
+          ) : null}
+          {/* Restore has to be reachable by someone who is *not* Pro on this
+              device — a reinstall is exactly when it is needed (3.1.1). */}
+          <Pressable
+            onPress={async () => {
+              setRestoring(true);
+              const ok = await restorePurchases();
+              setRestoring(false);
+              if (ok) await setPro(true);
+              else if (!isPro) Alert.alert('Nothing to restore', 'No active Mathly Pro subscription was found for your Apple ID.');
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Restore purchases"
+          >
+            <Text style={[typography.caption, { marginTop: 12 }]}>
+              {restoring ? 'Restoring…' : 'Restore purchases'}
+            </Text>
+          </Pressable>
         </View>
 
         <Text style={styles.sectionLabel}>STATS</Text>

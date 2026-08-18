@@ -131,5 +131,7 @@ iOS: `IOS_DIST_CERTIFICATE_P12`, `IOS_DIST_CERTIFICATE_PASSWORD`,
 - [ ] Host `docs/privacy-policy.md` at a public URL and set it in Settings
 - [ ] `npm run metadata:push` — App Store description (with the Terms of Use
       link Guideline 3.1.2 requires) + custom EULA into App Store Connect
+- [ ] `npm run screenshots:paywall` — review screenshot for each subscription
+- [ ] `npm run metadata:preflight` — audit the live listing before submitting
       (`openLink` in `src/screens/SettingsScreen.tsx`)
 - [ ] Bump `versionCode` / build numbers happen automatically in CI

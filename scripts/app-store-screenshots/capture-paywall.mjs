@@ -94,7 +94,11 @@ async function main() {
   let browser = null;
   try {
     expoChild = await ensureExpo();
-    browser = await chromium.launch();
+    // CI images sometimes carry a Chromium that does not match the pinned
+    // Playwright build; honour an explicit path when one is provided.
+    browser = await chromium.launch(
+      process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
+    );
     const context = await browser.newContext({
       viewport: { width: 390, height: 844 },
       deviceScaleFactor: 3,

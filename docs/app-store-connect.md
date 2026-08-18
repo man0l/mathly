@@ -134,6 +134,32 @@ is sitting in Waiting for Review, reject it in App Store Connect first — the
 script says so instead of failing obscurely. It also refuses to push if either
 legal URL does not return a live page.
 
+## 6b. Preflight the listing (last thing before Submit)
+
+```bash
+npm run metadata:preflight
+```
+
+or GitHub → Actions → **iOS Signing Setup** → job `app-store-preflight`. It
+reads the live listing back and reports ✓ / ⚠ / ✗ on everything Apple's
+pre-review automation rejects for, exiting non-zero if anything is blocking:
+
+| Checked | Rejects as |
+| --- | --- |
+| Terms of Use + Privacy Policy links in the live description | 3.1.2 |
+| Custom EULA present on App Information | 3.1.2 |
+| Privacy policy URL, support URL, age rating | 5.1.1 / metadata |
+| A build is attached to the version | 2.1 |
+| Screenshots uploaded | 2.3.3 |
+| Subscriptions exist and are Ready to Submit | 2.1 |
+| Each subscription has its review screenshot | 2.1 |
+| App Store prices match the paywall's fallback copy | 2.3.1 |
+
+The review screenshot each subscription needs is captured by
+`npm run screenshots:paywall` → `docs/app-store-screenshots/iap-review/paywall.png`;
+upload it on each product in App Store Connect. Regenerate it whenever the
+paywall changes — it has to match what the reviewer sees.
+
 ## 7. Create the app record + build
 
 1. App Store Connect → **+ New App**: iOS, name **Mathly — AI Math Tutor**
@@ -166,13 +192,20 @@ App Store Connect → your app → **Version 1.0.0**:
 | Export Compliance | uses HTTPS only → set `ITSAppUsesNonExemptEncryption=false` (already in `app.json`); answer "uses standard encryption, exempt" |
 | Review notes | "Point the camera at any math problem — e.g. a textbook page. No account needed. Subscription: Mathly Pro yearly/weekly with 3-day trial." Add a short demo video link if handy. |
 
-Then **Submit for Review**. Typical first-review turnaround: 24–48h.
+Run `npm run metadata:preflight` (step 6b), clear anything it marks ✗, then
+**Submit for Review**. Typical first-review turnaround: 24–48h.
 
 ## Common rejection traps (already handled in-repo)
 
 - ✅ Camera purpose strings (`NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`)
 - ✅ Privacy manifest + `ITSAppUsesNonExemptEncryption=false`
-- ✅ Paywall shows price + trial terms; Restore button present
+- ✅ Paywall states the subscription name, length, price, trial and that it
+  auto-renews, links Terms + Privacy, and offers Restore (3.1.2). Prices come
+  from the store at runtime, so they cannot drift from App Store Connect
+- ✅ Restore is reachable *without* being subscribed — the reinstall case (3.1.1)
+- ✅ The simulated "Test valid purchase" path is compiled out of release
+  builds; a shipped build that unlocks Pro without an IAP is a 3.1.1 rejection,
+  and the release job refuses to build without a RevenueCat key (2.1)
 - ✅ Terms of Use (EULA) link in the App Store Description + custom EULA text
   in App Information (3.1.2 automated check) — written by
   `npm run metadata:push`, verified live by `npm run metadata:check`.
