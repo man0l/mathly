@@ -175,7 +175,7 @@ jobs:
           echo "IOS_IPA=$IPA" >> "$GITHUB_ENV"
 
       - name: Upload IPA artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: mathly-ipa
           path: build/*.ipa
