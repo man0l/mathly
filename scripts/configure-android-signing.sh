@@ -16,9 +16,12 @@ if [[ -z "${ANDROID_KEYSTORE_BASE64:-}" ]]; then
   exit 0
 fi
 
-: "${ANDROID_KEYSTORE_PASSWORD:?ANDROID_KEYSTORE_PASSWORD is required}"
 : "${ANDROID_KEY_ALIAS:?ANDROID_KEY_ALIAS is required}"
-: "${ANDROID_KEY_PASSWORD:?ANDROID_KEY_PASSWORD is required}"
+
+# Passwords may be empty: a PKCS#12 keystore created without one signs fine,
+# and Java/Gradle open it with an empty password. Only the alias is structural.
+ANDROID_KEYSTORE_PASSWORD="${ANDROID_KEYSTORE_PASSWORD:-}"
+ANDROID_KEY_PASSWORD="${ANDROID_KEY_PASSWORD:-}"
 
 KEYSTORE_FILENAME="${ANDROID_KEYSTORE_FILENAME:-upload-keystore.p12}"
 if base64 --help 2>&1 | grep -q -- '--decode'; then

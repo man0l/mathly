@@ -22,9 +22,17 @@ check() {
 echo "Checking Android release credentials (values are never printed)"
 
 check ANDROID_KEYSTORE_BASE64 "base64 of the upload keystore"
-check ANDROID_KEYSTORE_PASSWORD "keystore (store) password"
 check ANDROID_KEY_ALIAS "key alias inside the keystore"
-check ANDROID_KEY_PASSWORD "password of that key"
+
+# The keystore passwords are optional — a PKCS#12 built without one signs
+# fine. They are reported, never required.
+for pw in ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_PASSWORD; do
+  if [[ -n "${!pw:-}" ]]; then
+    printf '  ok       %-34s\n' "$pw"
+  else
+    printf '  unset    %-34s %s\n' "$pw" "(optional — keystore has no password)"
+  fi
+done
 check GOOGLE_PLAY_SERVICE_ACCOUNT_JSON "Play Console service account JSON"
 check EXPO_PUBLIC_API_BASE_URL "backend URL baked into the bundle"
 check EXPO_PUBLIC_REVENUECAT_KEY "RevenueCat Android SDK key (goog_...)"
@@ -67,7 +75,7 @@ if [[ -n "${ANDROID_KEYSTORE_BASE64:-}" && -n "$keystore_check" ]]; then
   if ! echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$tmp_keystore" 2>/dev/null; then
     missing+=("ANDROID_KEYSTORE_BASE64 (not valid base64)")
     echo "  MALFORMED ANDROID_KEYSTORE_BASE64 — re-encode with: base64 -w0 upload-keystore.p12"
-  elif [[ -n "${ANDROID_KEYSTORE_PASSWORD:-}" && -n "${ANDROID_KEY_ALIAS:-}" ]]; then
+  elif [[ -n "${ANDROID_KEY_ALIAS:-}" ]]; then
     if [[ "$keystore_check" == keytool ]]; then
       keytool -list -keystore "$tmp_keystore" -storetype PKCS12 \
         -storepass "$ANDROID_KEYSTORE_PASSWORD" \
@@ -81,7 +89,7 @@ if [[ -n "${ANDROID_KEYSTORE_BASE64:-}" && -n "$keystore_check" ]]; then
       missing+=("keystore/password/alias mismatch")
       echo "  MISMATCH ANDROID_KEYSTORE_PASSWORD or ANDROID_KEY_ALIAS does not open the keystore"
     else
-      echo "  ok       keystore opens with the given password${keystore_check:+ (checked with $keystore_check)}"
+      echo "  ok       keystore opens${keystore_check:+ (checked with $keystore_check)}"
     fi
   fi
 fi

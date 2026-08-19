@@ -145,17 +145,6 @@ prompt_secret() {           # prompt_secret VAR_NAME "question"
   printf -v "$__var" '%s' "$__value"
 }
 
-# The keystore password must not be empty. An empty one silently produces an
-# unprotected signing key AND makes set_secret skip both password secrets, so
-# CI then fails on credentials that look like they were just set.
-prompt_secret_required() { # prompt_secret_required VAR_NAME "question"
-  local __var="$1" __prompt="$2"
-  while :; do
-    prompt_secret "$__var" "$__prompt"
-    [[ -n "${!__var}" ]] && break
-    echo "  a password is required — an empty one leaves the signing key unprotected" >&2
-  done
-}
 
 b64() { base64 -w0 < "$1" 2>/dev/null || base64 < "$1" | tr -d '\n'; }
 
@@ -165,7 +154,7 @@ if [[ -f "$KEYSTORE_FILE" ]]; then
   echo "Using existing keystore: $KEYSTORE_FILE"
   read -r -p "Key alias in that keystore [upload]: " KEY_ALIAS </dev/tty
   KEY_ALIAS="${KEY_ALIAS:-upload}"
-  prompt_secret_required KEYSTORE_PASSWORD "Keystore password"
+  prompt_secret KEYSTORE_PASSWORD "Keystore password (Enter if it has none)"
   prompt_secret KEY_PASSWORD "Key password (Enter to reuse the keystore password)"
   KEY_PASSWORD="${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
 else
@@ -174,7 +163,7 @@ else
   echo "Back this file up: Play only accepts uploads signed with it."
   read -r -p "Key alias [upload]: " KEY_ALIAS </dev/tty
   KEY_ALIAS="${KEY_ALIAS:-upload}"
-  prompt_secret_required KEYSTORE_PASSWORD "New keystore password (min 6 chars)"
+  prompt_secret KEYSTORE_PASSWORD "New keystore password (Enter for none)"
   KEY_PASSWORD="$KEYSTORE_PASSWORD"
   generate_keystore "$KEYSTORE_FILE" "$KEY_ALIAS" "$KEYSTORE_PASSWORD"
   echo "Created $KEYSTORE_FILE"

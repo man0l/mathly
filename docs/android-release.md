@@ -8,9 +8,9 @@ ones that are missing.
 | Secret | What it is | Where it comes from |
 | --- | --- | --- |
 | `ANDROID_KEYSTORE_BASE64` | base64 of the upload keystore (`.p12`) | you generate it — step 1 |
-| `ANDROID_KEYSTORE_PASSWORD` | that keystore's store password | you choose it — step 1 |
+| `ANDROID_KEYSTORE_PASSWORD` | store password — **optional**, omit if the keystore has none | you choose it — step 1 |
 | `ANDROID_KEY_ALIAS` | alias of the key inside it (`upload`) | you choose it — step 1 |
-| `ANDROID_KEY_PASSWORD` | that key's password (usually the same) | you choose it — step 1 |
+| `ANDROID_KEY_PASSWORD` | key password — **optional**, same rule | you choose it — step 1 |
 | `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | full JSON key file, pasted verbatim | Google Cloud + Play Console — step 2 |
 | `EXPO_PUBLIC_API_BASE_URL` | backend URL baked into the JS bundle | your Vercel deployment |
 | `EXPO_PUBLIC_REVENUECAT_KEY` | RevenueCat **Android** SDK key (`goog_…`) | RevenueCat → Project → API keys |
@@ -61,12 +61,15 @@ openssl pkcs12 -export -inkey key.pem -in cert.pem \
 rm key.pem cert.pem          # the .p12 now holds the key; back it up
 ```
 
-**Do not leave the export password empty.** openssl accepts an empty one
-without complaint, which produces a signing key protected by nothing — the
-base64 in GitHub secrets would then be the only thing standing between a leak
-and someone signing releases as you. It also leaves
-`ANDROID_KEYSTORE_PASSWORD` unset, so CI fails on a credential that looks like
-it was just configured.
+The export password is **optional**. A PKCS#12 keystore built without one
+signs perfectly well — Java, Gradle and Play all open it with an empty
+password — so `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_PASSWORD` may be
+left unset and the build still works.
+
+What a password buys you is protection for the copy of `upload-keystore.p12`
+that lives outside GitHub: on your laptop, in backups, in synced folders. It
+adds little against a compromise of the GitHub secrets themselves, since the
+password would be stored right next to the keystore there.
 
 The alias is whatever you pass to `-name` (`upload` above), and the export
 password becomes both `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_PASSWORD` —
