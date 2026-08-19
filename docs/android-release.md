@@ -61,6 +61,13 @@ openssl pkcs12 -export -inkey key.pem -in cert.pem \
 rm key.pem cert.pem          # the .p12 now holds the key; back it up
 ```
 
+**Do not leave the export password empty.** openssl accepts an empty one
+without complaint, which produces a signing key protected by nothing — the
+base64 in GitHub secrets would then be the only thing standing between a leak
+and someone signing releases as you. It also leaves
+`ANDROID_KEYSTORE_PASSWORD` unset, so CI fails on a credential that looks like
+it was just configured.
+
 The alias is whatever you pass to `-name` (`upload` above), and the export
 password becomes both `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_PASSWORD` —
 PKCS#12 uses one password for the store and the key.
