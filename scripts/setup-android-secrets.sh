@@ -3,7 +3,7 @@
 # Android Release workflow needs into GitHub Actions secrets, via `gh`.
 #
 # Secrets never touch the terminal scrollback: passwords are read with `read -s`
-# and every value is piped to `gh secret set --body-file -`. The generated
+# and every value is piped into `gh secret set` on stdin. The generated
 # keystore is written to the path you choose (default ./upload-keystore.p12) —
 # back it up, Play will only ever accept uploads signed with this key.
 #
@@ -111,13 +111,30 @@ gh auth status >/dev/null 2>&1 || { echo "error: run 'gh auth login' first" >&2;
 REPO="${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}"
 echo "Target repository: $REPO"
 
+# Prove we can actually reach the Actions secrets API before prompting for
+# anything — writing secrets needs admin rights on the repo, and finding that
+# out after the prompts means retyping every value.
+if ! gh secret list --repo "$REPO" >/dev/null 2>&1; then
+  echo "error: cannot read Actions secrets for $REPO." >&2
+  echo "       Setting secrets needs admin rights on the repo. Try:" >&2
+  echo "         gh auth refresh -h github.com -s repo" >&2
+  exit 1
+fi
+
+ALREADY_SET="$(gh secret list --repo "$REPO" 2>/dev/null | awk '{print $1}' | tr '\n' ' ')"
+[[ -n "${ALREADY_SET// /}" ]] && echo "Already set: $ALREADY_SET"
+echo "(Press Enter at any prompt to leave that secret as it is.)"
+
 set_secret() {
   local name="$1" value="$2"
   if [[ -z "$value" ]]; then
     echo "  skipped $name (empty input — existing value, if any, is left alone)"
     return
   fi
-  printf '%s' "$value" | gh secret set "$name" --repo "$REPO" --body-file -
+  # gh reads the value from stdin when --body is omitted. Piping (rather than
+  # --body "$value") also keeps the secret out of the process command line,
+  # where `ps` would expose it to any other user on the machine.
+  printf '%s' "$value" | gh secret set "$name" --repo "$REPO"
   echo "  set     $name"
 }
 
