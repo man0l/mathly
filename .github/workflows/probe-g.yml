@@ -1,0 +1,80 @@
+name: Probe C (verbatim)
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  android:
+    needs: quality
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      EXPO_PUBLIC_API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
+      EXPO_PUBLIC_REVENUECAT_KEY: ${{ secrets.EXPO_PUBLIC_REVENUECAT_KEY }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configure release signing
+        run: bash scripts/configure-android-signing.sh
+
+      - name: Set version code
+        run: bash scripts/set-android-version-code.sh
+
+      - name: Build release AAB
+        run: ./gradlew bundleRelease --no-daemon
+        working-directory: android
+
+      - name: Stage release artifacts
+        run: |
+          cp android/app/build/outputs/bundle/release/app-release.aab mathly-${{ env.SHA_SHORT }}.aab
+          cp android/app/build/outputs/mapping/release/mapping.txt mapping-${{ env.SHA_SHORT }}.txt
+
+      - name: Upload Play Store artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mathly-play-${{ env.SHA_SHORT }}
+          path: |
+            mathly-${{ env.SHA_SHORT }}.aab
+            mapping-${{ env.SHA_SHORT }}.txt
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "android-${{ github.run_number }}" \
+            "mathly-${{ env.SHA_SHORT }}.aab" \
+            "mapping-${{ env.SHA_SHORT }}.txt" \
+            --title "Android build ${{ env.SHA_SHORT }} (v${{ env.ANDROID_VERSION_CODE }})" \
+            --notes "Play Store bundle (versionCode ${{ env.ANDROID_VERSION_CODE }}) + ProGuard mapping. Upload .aab to Internal testing, attach mapping.txt as deobfuscation file, and add testers before rollout." \
+            --latest
+
+      - name: Submit to Play Store internal track
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.balkanbit.mathly
+          releaseFiles: mathly-${{ env.SHA_SHORT }}.aab
+          track: internal
+          mappingFile: mapping-${{ env.SHA_SHORT }}.txt
+
+      - name: Prune old Android artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEEP_ARTIFACTS: "2"
+        run: bash scripts/prune-android-artifacts.sh
