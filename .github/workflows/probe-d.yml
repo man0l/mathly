@@ -1,0 +1,33 @@
+name: Probe D (quality job only)
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx expo lint
+      # Guards Apple's 3.1.2 check: the store description must keep the Terms
+      # of Use / Privacy Policy links the app itself opens. Offline so a flaky
+      # network cannot fail the build — liveness is checked before every push.
+      - run: node scripts/app-store-metadata.mjs --check --offline
