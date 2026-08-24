@@ -1,0 +1,56 @@
+name: E2E
+
+# Runs the full Playwright funnel on the react-native-web build: onboarding,
+# checkout (paywall → purchase → unlock), restore, paywall dismissal and the
+# failed-purchase recovery path — plus a RevenueCat store-config preflight
+# that fails when the current offering has no packages attached, which is
+# what left Subscribe dead in the builds both Apple and Google rejected.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      REVENUECAT_TEST_KEY: ${{ secrets.REVENUECAT_TEST_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # The preflight spec needs the test-mode key to audit the RevenueCat
+      # offering; without it checkout could ship broken exactly like the last
+      # review cycle.
+      - name: Require the store test key
+        run: |
+          if [ -z "$REVENUECAT_TEST_KEY" ]; then
+            echo "::error::REVENUECAT_TEST_KEY secret is not set. Add it (repo Settings → Secrets and variables → Actions) — it is the RevenueCat test-mode secret key used to verify the checkout offerings."
+            exit 1
+          fi
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run e2e suite
+        run: npm run test:e2e
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failures-${{ github.run_attempt }}
+          path: test-results/
+          retention-days: 7
