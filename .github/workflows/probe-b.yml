@@ -1,0 +1,14 @@
+# Diagnostic probe: no permissions block. Delete after diagnosis.
+name: Probe B (no permissions)
+on:
+  pull_request:
+    branches: [main, master]
+concurrency:
+  group: probe-b-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: echo "probe b ok"
