@@ -1,0 +1,13 @@
+name: Probe J (job if only)
+on:
+  pull_request:
+    branches: [main, master]
+permissions:
+  contents: write
+  actions: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - run: echo hi
