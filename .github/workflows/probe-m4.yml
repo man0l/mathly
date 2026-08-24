@@ -1,0 +1,14 @@
+name: Probe M4 (ANDROID_KEY_PASSWORD)
+on:
+  pull_request:
+    branches: [main, master]
+permissions:
+  contents: write
+  actions: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    env:
+      T: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - run: echo hi

@@ -1,4 +1,4 @@
-name: Probe J (job if only)
+name: Probe M1 (ANDROID_KEYSTORE_BASE64)
 on:
   pull_request:
     branches: [main, master]
@@ -8,6 +8,7 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
+    env:
+      T: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
     steps:
       - run: echo hi
