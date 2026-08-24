@@ -12,10 +12,28 @@ export const ENTITLEMENT_ID = 'Mathly Pro';
 
 const RC_ANDROID_KEY = process.env.EXPO_PUBLIC_REVENUECAT_KEY ?? '';
 const RC_IOS_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '';
-const PLATFORM_KEY = Platform.OS === 'ios' && RC_IOS_KEY ? RC_IOS_KEY : RC_ANDROID_KEY;
+
+/**
+ * Only the key minted for this platform can configure the SDK. Configuring
+ * with the other store's key (the old fallback) fails silently inside the SDK
+ * while `purchasesAvailable` stays true — a release build whose Subscribe
+ * button does nothing, which reads as a broken app in review.
+ */
+const PLATFORM_KEY = Platform.OS === 'ios' ? RC_IOS_KEY : RC_ANDROID_KEY;
+
+/** Keys are prefixed per store (`appl_…`, `goog_…`); anything else cannot work. */
+function keyFitsPlatform(key: string): boolean {
+  if (!key) return false;
+  const prefix = Platform.OS === 'ios' ? 'appl_' : 'goog_';
+  if (!key.startsWith(prefix)) {
+    console.warn(`[purchases] key for ${Platform.OS} should start with ${prefix}`);
+    return false;
+  }
+  return true;
+}
 
 const isNative = Platform.OS === 'ios' || Platform.OS === 'android';
-export const purchasesAvailable = isNative && !!PLATFORM_KEY;
+export const purchasesAvailable = isNative && keyFitsPlatform(PLATFORM_KEY);
 
 /**
  * Whether the simulated ("Test valid purchase") path may be offered.
@@ -83,9 +101,29 @@ async function currentPackages(): Promise<Pkg[]> {
   return offerings.current?.availablePackages ?? [];
 }
 
+/**
+ * Turn a purchase failure into something the paywall can show the user. Every
+ * button in the funnel must come back with words — a silent failure is exactly
+ * the "tapping Subscribe does nothing" report we got from both stores.
+ */
+export function purchaseErrorMessage(e: unknown): string {
+  const raw = e instanceof Error ? e.message : String(e);
+  if (raw.includes('No offering package')) {
+    // The RevenueCat offering has no package for this plan (products missing
+    // or not attached in the dashboard). Not the user's fault — say so.
+    return 'This plan is not available in the store right now. Please check again soon.';
+  }
+  if (/cancel/i.test(raw)) {
+    return 'The purchase was cancelled. You were not charged.';
+  }
+  return 'Something went wrong talking to the store. You were not charged — please try again.';
+}
+
 export async function purchasePro(plan: PlanId): Promise<boolean> {
   const Purchases = getPurchases();
-  if (!Purchases || !configured) return false;
+  if (!Purchases || !configured) {
+    throw new Error('The store is not connected yet. Please try again in a moment.');
+  }
   const pkg = findPackage(await currentPackages(), plan);
   if (!pkg) throw new Error(`No offering package for the ${plan} plan`);
   const { customerInfo } = await Purchases.purchasePackage(pkg);
@@ -142,12 +180,36 @@ function formatPerWeek(amount: number, currencyCode: string): string | null {
 
 export async function restorePurchases(): Promise<boolean> {
   const Purchases = getPurchases();
-  if (!Purchases || !configured) return false;
+  if (!Purchases || !configured) {
+    // Web/dev has no store to ask: that is "nothing was restored", not a
+    // failure. A native build that never configured is a real error — it must
+    // reach the user as words, never as a silently dead Restore button.
+    if (!isNative) return false;
+    throw new Error('The store is not connected yet. Please try again in a moment.');
+  }
   const info = await Purchases.restorePurchases();
   return !!info.entitlements.active[ENTITLEMENT_ID];
 }
 
-/** Simulated purchase for web/dev — mirrors what the RC sandbox would do. */
+/**
+ * Web-only hook the checkout e2e uses to rehearse a failed purchase: the
+ * "Test valid purchase" path rejects like a declined payment would, so the
+ * spec can assert the paywall answers with an error and recovers. Inert on
+ * native and whenever the flag is unset.
+ */
+async function e2eFailPurchase(): Promise<boolean> {
+  if (Platform.OS !== 'web') return false;
+  try {
+    return localStorage.getItem('e2e_fail_purchase') === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** Simulated purchase for web/dev — mirrors what the RC test store would do. */
 export async function simulatePurchase(): Promise<void> {
   await new Promise((r) => setTimeout(r, 900));
+  if (await e2eFailPurchase()) {
+    throw new Error('The payment could not be completed.');
+  }
 }

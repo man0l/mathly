@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { Button } from '../components/ui';
 import { CheckIcon, CrownIcon } from '../components/icons';
+import { appAlert } from '../lib/alert';
 import { openLegalLink } from '../lib/links';
 import {
   configurePurchases,
   fetchPlanOffers,
   purchasesAvailable,
+  purchaseErrorMessage,
   purchasePro,
   restorePurchases,
   simulatePurchase,
@@ -17,6 +19,7 @@ import {
   type PlanId,
   type PlanOffer,
 } from '../lib/purchases';
+import { useAppNavigation } from '../navigation';
 import { colors, radius, typography } from '../theme/tokens';
 import { useApp } from '../state/AppProvider';
 
@@ -96,6 +99,7 @@ function disclosure(plan: Plan): string {
 
 export function PaywallScreen() {
   const { setPro } = useApp();
+  const navigation = useAppNavigation();
   const [plan, setPlan] = useState<PlanId>('yearly');
   const [loading, setLoading] = useState(false);
   const [plans, setPlans] = useState<Plan[]>(PLANS);
@@ -117,6 +121,9 @@ export function PaywallScreen() {
     };
   }, []);
 
+  // Every branch of the funnel ends in something the user can see. A silent
+  // failure here is a Subscribe button that does nothing — the exact "cannot
+  // continue" behaviour both stores rejected us for.
   const start = async () => {
     setLoading(true);
     try {
@@ -124,24 +131,31 @@ export function PaywallScreen() {
       if (purchasesAvailable) {
         const ok = await purchasePro(plan);
         if (ok) await setPro(true);
+        else appAlert('Purchase not completed', 'You were not charged. Please try again in a moment.');
       } else if (simulationAllowed) {
         // Web/dev: simulate the purchase flow like the RC test store would.
         setShowTestPurchase(true);
       } else {
         // A shipped build with no store connection: say so rather than leaving
         // the button dead, which reads as a broken app in review.
-        Alert.alert('Subscriptions unavailable', 'The App Store could not be reached. Please try again in a moment.');
+        appAlert('Subscriptions unavailable', 'The App Store could not be reached. Please try again in a moment.');
       }
     } catch (e) {
       console.warn('purchase failed', e);
+      appAlert('Purchase not completed', purchaseErrorMessage(e));
     } finally {
       setLoading(false);
     }
   };
 
   const testPurchase = async () => {
-    await simulatePurchase();
-    await setPro(true);
+    try {
+      await simulatePurchase();
+      await setPro(true);
+    } catch (e) {
+      console.warn('simulated purchase failed', e);
+      appAlert('Purchase not completed', purchaseErrorMessage(e));
+    }
   };
 
   const restore = async () => {
@@ -149,6 +163,10 @@ export function PaywallScreen() {
     try {
       const ok = await restorePurchases();
       if (ok) await setPro(true);
+      else appAlert('Nothing to restore', 'No previous Mathly Pro purchase was found for this account.');
+    } catch (e) {
+      console.warn('restore failed', e);
+      appAlert('Restore failed', purchaseErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -157,6 +175,18 @@ export function PaywallScreen() {
   return (
     <LinearGradient colors={['#141B36', colors.bg, colors.bg]} style={{ flex: 1 }}>
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        {/* Escape hatch: a purchase failure must never trap the user on this
+            screen — both stores read that as "app prevents continuing". */}
+        <Pressable
+          testID="paywall-close"
+          onPress={() => navigation.navigate('Tabs')}
+          accessibilityRole="button"
+          accessibilityLabel="Continue without Mathly Pro"
+          hitSlop={12}
+          style={styles.closeBtn}
+        >
+          <Text style={styles.closeText}>✕</Text>
+        </Pressable>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.hero}>
             <CrownIcon size={34} color={colors.amber} />
@@ -261,6 +291,19 @@ export function PaywallScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+  closeBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 18,
+    zIndex: 10,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(148, 163, 204, 0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeText: { color: colors.textSecondary, fontSize: 16, lineHeight: 20 },
   scroll: { paddingHorizontal: 24, paddingBottom: 20, gap: 22 },
   hero: { alignItems: 'center', paddingTop: 14, gap: 4 },
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },

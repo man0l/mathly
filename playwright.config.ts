@@ -18,6 +18,9 @@ export default defineConfig({
     baseURL: BASE_URL,
     ...devices['Desktop Chrome'],
     viewport: { width: 390, height: 844 },
+    // Failure evidence for CI artifacts (uploaded by e2e.yml).
+    screenshot: 'only-on-failure',
+    trace: 'retain-on-failure',
   },
   webServer: {
     command: `npx expo start --web --port ${PORT}`,

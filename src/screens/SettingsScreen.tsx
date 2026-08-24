@@ -4,8 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppNavigation } from '../navigation';
 
 import { BookIcon, ChevronRight, CrownIcon, SettingsIcon, TrashIcon } from '../components/icons';
+import { appAlert } from '../lib/alert';
 import { openLegalLink } from '../lib/links';
-import { restorePurchases } from '../lib/purchases';
+import { purchaseErrorMessage, restorePurchases } from '../lib/purchases';
 import { colors, radius, typography } from '../theme/tokens';
 import { useApp } from '../state/AppProvider';
 
@@ -69,14 +70,24 @@ export function SettingsScreen() {
             </Pressable>
           ) : null}
           {/* Restore has to be reachable by someone who is *not* Pro on this
-              device — a reinstall is exactly when it is needed (3.1.1). */}
+              device — a reinstall is exactly when it is needed (3.1.1). The
+              try/catch matters: an unhandled rejection would leave this stuck
+              on "Restoring…" forever, which reads as a hung app. */}
           <Pressable
             onPress={async () => {
               setRestoring(true);
-              const ok = await restorePurchases();
-              setRestoring(false);
-              if (ok) await setPro(true);
-              else if (!isPro) Alert.alert('Nothing to restore', 'No active Mathly Pro subscription was found for your Apple ID.');
+              try {
+                const ok = await restorePurchases();
+                if (ok) await setPro(true);
+                else if (!isPro) {
+                  appAlert('Nothing to restore', 'No active Mathly Pro subscription was found for your account.');
+                }
+              } catch (e) {
+                console.warn('restore failed', e);
+                appAlert('Restore failed', purchaseErrorMessage(e));
+              } finally {
+                setRestoring(false);
+              }
             }}
             accessibilityRole="button"
             accessibilityLabel="Restore purchases"
