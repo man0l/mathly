@@ -12,3 +12,8 @@ test-results/
 docs/app-store-screenshots/_raw/
 docs/app-store-screenshots/_work/
 .vercel
+
+# Android upload keystore + credentials (never commit)
+upload-keystore.p12
+upload-keystore*.bak
+keystore-credentials.txt
