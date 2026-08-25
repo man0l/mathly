@@ -15,6 +15,8 @@ test('onboarding → paywall → solve → follow-up → history → chat', asyn
   await testPurchase.waitFor({ timeout: 20_000 });
   await testPurchase.click();
   await page.getByText('Ready to solve?').waitFor({ timeout: 30_000 });
+  // 5.1.2(i) guard: scan home discloses the AI hand-off at the submission point.
+  await page.getByText(/scan or type are processed by an AI service/).waitFor();
 
   // Scan → test photo → solution (stubbed API)
   await page.getByRole('button', { name: 'Scan a problem' }).click();
@@ -44,6 +46,7 @@ test('onboarding → paywall → solve → follow-up → history → chat', asyn
 
   // Chat
   await page.getByRole('tab', { name: 'Chat' }).click();
+  await page.getByText(/Messages are processed by an AI service/).waitFor();
   await page.getByRole('button', { name: 'Explain the quadratic formula' }).click();
   await page.getByText('Think of the ± sign', { exact: false }).waitFor({ timeout: 30_000 });
 

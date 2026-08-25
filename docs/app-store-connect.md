@@ -188,9 +188,9 @@ App Store Connect → your app → **Version 1.0.0**:
 | Category | Education (secondary: Productivity) |
 | Age Rating | answer quiz → 4+ (no user content, no web browsing) |
 | Price | with IAP: price tier Free |
-| App Privacy | collect: *Photos or Videos* + *Purchase History* (both = app functionality, not linked for photos / linked for purchases), no tracking |
+| App Privacy | collect: *Photos or Videos* (App Functionality, not linked) + *Purchase History* (App Functionality, linked) + **Device ID** (App Functionality, linked — RevenueCat's random per-device identifier). No tracking. These three must match the `app.json` privacy manifest exactly |
 | Export Compliance | uses HTTPS only → set `ITSAppUsesNonExemptEncryption=false` (already in `app.json`); answer "uses standard encryption, exempt" |
-| Review notes | "Point the camera at any math problem — e.g. a textbook page. No account needed. Subscription: Mathly Pro yearly/weekly with 3-day trial." Add a short demo video link if handy. |
+| Review notes | "Point the camera at any math problem — e.g. a textbook page. No account needed. Problem photos and typed questions are sent to OpenAI to generate solutions — disclosed in-app on the welcome screen and scan home before first use (5.1.2). Subscription: Mathly Pro yearly/weekly with 3-day trial." Add a short demo video link if handy. |
 
 Run `npm run metadata:preflight` (step 6b), clear anything it marks ✗, then
 **Submit for Review**. Typical first-review turnaround: 24–48h.
@@ -212,6 +212,11 @@ Run `npm run metadata:preflight` (step 6b), clear anything it marks ✗, then
   **Run the push before every submission**: editing `docs/` changes nothing
   that review sees, which is exactly how the first 3.1.2 rejection happened.
 - ✅ No signup wall — app usable (scan + solve) after onboarding
+- ✅ Third-party AI disclosure (5.1.2(i)): the welcome screen, scan home and
+  chat all state that submitted problems/messages are processed by an AI
+  service (OpenAI), with Terms/Privacy links — and `docs/privacy-policy.md`
+  names OpenAI too. If you ever swap AI providers, update all four places in
+  the same commit
 - ⚠️ **Sign in required? No.** Leave as-is.
 - ⚠️ If IAP products are missing/invalid in App Store Connect (step 5), review
   will reject with Guideline 2.1 — do step 5 before submitting.

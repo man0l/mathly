@@ -1,6 +1,6 @@
 # Mathly Privacy Policy
 
-_Last updated: 2026-08-14_
+_Last updated: 2026-08-24_
 
 Mathly ("we", "our") is an AI math tutor app. This policy explains what data
 the app handles and why. The short version: your problem photos go to our AI
@@ -25,14 +25,17 @@ When you scan or type a problem:
 - Your level and explanation-style preferences, so the answer is pitched right
 - Follow-up questions and the problem context needed to answer them
 
-Photos are transmitted over HTTPS, used only to produce your solution, and are
-not retained after the request completes. Chat history is stored on your
-device only — we do not keep a server-side copy.
+Photos are transmitted over HTTPS to our AI provider (OpenAI), used only to
+produce your solution, and are not retained after the request completes. Chat
+messages and your level/style preferences travel with the same request and are
+handled the same way. Chat history is stored on
+your device only — we do not keep a server-side copy.
 
 ## Purchases
 
 Subscriptions are processed entirely by Apple App Store / Google Play. We
-receive anonymized purchase status (via RevenueCat) to unlock Pro features.
+receive anonymized purchase status (via RevenueCat) — which includes a random
+per-device identifier, not tied to your name — to unlock Pro features.
 We never see or store your payment details.
 
 ## What we do NOT do
@@ -44,7 +47,7 @@ We never see or store your payment details.
 
 ## Children's privacy
 
-Mathly is rated 3+ / Everyone and asks for no personal information from any
+Mathly is rated 4+ / Everyone and asks for no personal information from any
 user, including children.
 
 ## Your rights

@@ -93,6 +93,8 @@ test('the paywall can be dismissed and checkout still works from Settings', asyn
   // Escape hatch: nobody gets trapped behind a failing purchase.
   await page.getByTestId('paywall-close').click();
   await page.getByText('Ready to solve?').waitFor({ timeout: 30_000 });
+  // The AI disclosure is visible in the free, non-Pro state too.
+  await page.getByText(/scan or type are processed by an AI service/).waitFor();
 
   await page.getByRole('tab', { name: 'Settings' }).click();
   await page.getByRole('button', { name: 'Upgrade to Mathly Pro' }).click();

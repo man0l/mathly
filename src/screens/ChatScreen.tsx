@@ -104,6 +104,11 @@ export function ChatScreen() {
                 </Pressable>
               ))}
             </View>
+            {/* 5.1.2(i): chat is the third path that sends user content to the
+                AI service — name it where the messages are written. */}
+            <Text style={[typography.caption, styles.aiNote]}>
+              Messages are processed by an AI service (OpenAI) to answer your questions.
+            </Text>
           </View>
         ) : (
           <View style={{ flex: 1 }}>
@@ -192,6 +197,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  aiNote: { textAlign: 'center', marginTop: 18, color: colors.textTertiary, lineHeight: 16 },
   starters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 22 },
   starter: {
     borderWidth: 1,
