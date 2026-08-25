@@ -11,6 +11,9 @@ export async function completeOnboarding(page: Page): Promise<void> {
 
   // Welcome
   await page.getByText('Math that finally').waitFor({ timeout: 90_000 });
+  // 5.1.2(i) guard: the third-party AI disclosure must be on the welcome
+  // screen, above the button the user taps to continue.
+  await page.getByText(/processed by an AI service \(OpenAI\)/).waitFor();
   await page.getByRole('button', { name: 'Get started' }).click();
 
   // Quiz

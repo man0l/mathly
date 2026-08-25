@@ -15,6 +15,7 @@ import { useAppNavigation } from '../navigation';
 import { Button } from '../components/ui';
 import { CheckIcon, ScanIcon, SparkIcon } from '../components/icons';
 import { QUIZ_STEPS, type QuizOption } from '../config/onboarding';
+import { openLegalLink } from '../lib/links';
 import { colors, gradients, radius, typography } from '../theme/tokens';
 import { useApp } from '../state/AppProvider';
 import type { OnboardingProfile } from '../types';
@@ -180,10 +181,35 @@ function Welcome({ onStart, returning }: { onStart: () => void; returning: boole
             <SparkIcon size={16} color={colors.accent} />
             <Text style={typography.caption}>2M+ problems solved this month</Text>
           </View>
-          <Button label={returning ? 'Set up my tutor again' : 'Get started'} onPress={onStart} />
-          <Pressable onPress={onStart} accessibilityRole="button" accessibilityLabel="I already have an account">
-            <Text style={[typography.caption, { textAlign: 'center' }]}>I already have an account</Text>
-          </Pressable>
+          {/* 5.1.2(i): the permission moment — the AI hand-off is disclosed
+              directly above the action that accepts it, with both legal pages
+              one tap away. */}
+          <View style={{ gap: 14 }}>
+            <Text style={styles.consentNote}>
+              By continuing you agree to our{' '}
+              <Text
+                style={styles.consentLink}
+                onPress={() => openLegalLink('terms')}
+                accessibilityRole="link"
+              >
+                Terms of Use
+              </Text>{' '}
+              and{' '}
+              <Text
+                style={styles.consentLink}
+                onPress={() => openLegalLink('privacy')}
+                accessibilityRole="link"
+              >
+                Privacy Policy
+              </Text>
+              . Problems you submit are processed by an AI service (OpenAI),
+              solely to generate your solutions.
+            </Text>
+            <Button label={returning ? 'Set up my tutor again' : 'Get started'} onPress={onStart} />
+            <Pressable onPress={onStart} accessibilityRole="button" accessibilityLabel="I already have an account">
+              <Text style={[typography.caption, { textAlign: 'center' }]}>I already have an account</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </LinearGradient>
@@ -293,4 +319,12 @@ const styles = StyleSheet.create({
   },
   proofRow: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center' },
   buildRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  consentNote: {
+    ...typography.caption,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    lineHeight: 16,
+    paddingHorizontal: 12,
+  },
+  consentLink: { color: colors.textSecondary, textDecorationLine: 'underline' },
 });

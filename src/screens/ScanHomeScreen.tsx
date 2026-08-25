@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAppNavigation } from '../navigation';
 
 import { CameraIcon, ChevronRight, ScanIcon, SparkIcon } from '../components/icons';
+import { openLegalLink } from '../lib/links';
 import { SUBJECTS, subjectMeta } from '../theme/subjects';
 import { colors, gradients, radius, typography } from '../theme/tokens';
 import { useApp } from '../state/AppProvider';
@@ -81,6 +82,20 @@ export function ScanHomeScreen() {
             <ScanIcon size={20} color="#fff" />
           </Pressable>
         </View>
+
+        {/* 5.1.2(i): the disclosure sits at the exact point where a problem
+            first leaves the device, for both entry paths (scan + typed). */}
+        <Text style={[typography.caption, styles.aiNote]}>
+          Problems you scan or type are processed by an AI service (OpenAI) to
+          generate answers.{' '}
+          <Text
+            style={[typography.caption, styles.aiNoteLink]}
+            onPress={() => openLegalLink('privacy')}
+            accessibilityRole="link"
+          >
+            Privacy Policy
+          </Text>
+        </Text>
 
         <Text style={[typography.small, styles.sectionLabel]}>SUBJECTS</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
@@ -196,6 +211,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sectionLabel: { letterSpacing: 0.14, fontWeight: '700', marginTop: 8 },
+  aiNote: { color: colors.textTertiary, marginTop: -4, lineHeight: 16 },
+  aiNoteLink: { color: colors.textSecondary, textDecorationLine: 'underline' },
   subjectChip: {
     flexDirection: 'row',
     alignItems: 'center',
