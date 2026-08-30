@@ -18,6 +18,12 @@ test('onboarding → paywall → solve → follow-up → history → chat', asyn
   // 5.1.2(i) guard: scan home discloses the AI hand-off at the submission point.
   await page.getByText(/scan or type are processed by an AI service/).waitFor();
 
+  // Subject chips look like options; tapping them must do something (2.1).
+  await page.getByRole('button', { name: 'Algebra' }).click();
+  await page.getByText('Fit the equation inside the frame').waitFor();
+  await page.getByRole('button', { name: 'Close scanner' }).click();
+  await page.getByText('Ready to solve?').waitFor();
+
   // Scan → test photo → solution (stubbed API)
   await page.getByRole('button', { name: 'Scan a problem' }).click();
   await page.getByText('Fit the equation inside the frame').waitFor();

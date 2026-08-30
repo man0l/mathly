@@ -120,6 +120,7 @@ export function ScannerScreen() {
             onPress={() => navigation.goBack()}
             accessibilityRole="button"
             accessibilityLabel="Close scanner"
+            hitSlop={8}
             style={styles.circleBtn}
           >
             <BackArrow size={20} color="#fff" />

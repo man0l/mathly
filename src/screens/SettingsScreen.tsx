@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppNavigation } from '../navigation';
 
+import { contentColumn } from '../components/ScreenShell';
 import { BookIcon, ChevronRight, CrownIcon, SettingsIcon, TrashIcon } from '../components/icons';
 import { appAlert } from '../lib/alert';
 import { openLegalLink } from '../lib/links';
@@ -24,7 +25,7 @@ export function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scroll, contentColumn()]} showsVerticalScrollIndicator={false}>
         <Text style={typography.h2}>Settings</Text>
 
         {/* Profile card */}

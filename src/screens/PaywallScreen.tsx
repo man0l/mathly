@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { contentColumn } from '../components/ScreenShell';
 import { Button } from '../components/ui';
 import { CheckIcon, CrownIcon } from '../components/icons';
 import { appAlert } from '../lib/alert';
@@ -187,7 +188,11 @@ export function PaywallScreen() {
         >
           <Text style={styles.closeText}>✕</Text>
         </Pressable>
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[styles.scroll, contentColumn()]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.hero}>
             <CrownIcon size={34} color={colors.amber} />
             <Text style={[typography.display, { textAlign: 'center', marginTop: 14 }]}>
@@ -215,10 +220,13 @@ export function PaywallScreen() {
               return (
                 <Pressable
                   key={p.id}
+                  testID={on ? `plan-${p.id}-selected` : `plan-${p.id}`}
                   onPress={() => setPlan(p.id)}
                   accessibilityRole="button"
                   accessibilityLabel={p.title}
-                  style={[styles.plan, on && styles.planOn]}
+                  accessibilityState={{ selected: on }}
+                  hitSlop={4}
+                  style={({ pressed }) => [styles.plan, on && styles.planOn, pressed && { opacity: 0.85 }]}
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={typography.h3}>{p.title}</Text>

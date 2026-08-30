@@ -52,6 +52,11 @@ export const spacing = {
   xxxl: 36,
 } as const;
 
+/** Keep readable columns on iPad instead of stretching phone layouts edge-to-edge. */
+export const layout = {
+  contentMaxWidth: 560,
+} as const;
+
 export const typography = {
   display: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 34, lineHeight: 40, color: colors.text },
   h1: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 28, lineHeight: 34, color: colors.text },

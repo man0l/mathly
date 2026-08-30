@@ -3,8 +3,18 @@ import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppNavigation } from '../navigation';
 
-import { colors, typography } from '../theme/tokens';
+import { colors, layout, typography } from '../theme/tokens';
 import { BackArrow } from './icons';
+
+/** Centered column so iPad (and large web) keep a tappable, readable width. */
+export function contentColumn(extra?: ViewStyle): ViewStyle {
+  return {
+    width: '100%',
+    maxWidth: layout.contentMaxWidth,
+    alignSelf: 'center',
+    ...extra,
+  };
+}
 
 export function ScreenShell({
   children,
@@ -30,7 +40,8 @@ export function BackHeader({ title, onBack }: { title?: string; onBack?: () => v
         onPress={() => (onBack ? onBack() : navigation.goBack())}
         accessibilityRole="button"
         accessibilityLabel="Go back"
-        style={styles.backBtn}
+        hitSlop={8}
+        style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.8 }]}
       >
         <BackArrow />
       </Pressable>

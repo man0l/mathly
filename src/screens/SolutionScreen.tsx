@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -13,7 +15,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute, type RouteProp } from '@react-navigation/native';
 
 import { useAppNavigation } from '../navigation';
-import { BackHeader } from '../components/ScreenShell';
+import { BackHeader, contentColumn } from '../components/ScreenShell';
+import { appAlert } from '../lib/alert';
 import { GraphPlot } from '../components/GraphPlot';
 import { Button } from '../components/ui';
 import { CheckIcon, CopyIcon, SendIcon, SparkIcon } from '../components/icons';
@@ -123,7 +126,7 @@ export function SolutionScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <BackHeader title="Solution" onBack={goBackPastScanner} />
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scroll, contentColumn()]} showsVerticalScrollIndicator={false}>
         {/* Problem */}
         <View style={styles.problemCard}>
           <View style={[styles.subjectTag, { backgroundColor: meta.tintSoft }]}>
@@ -145,7 +148,29 @@ export function SolutionScreen() {
               <CheckIcon size={13} color={colors.mint} />
               <Text style={[typography.small, { color: colors.mint }]}>Verified by substitution</Text>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Copy answer" style={styles.copyBtn}>
+            <Pressable
+              onPress={async () => {
+                const text = solution.finalAnswer;
+                try {
+                  if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(text);
+                    appAlert('Copied', 'Answer copied to the clipboard.');
+                    return;
+                  }
+                } catch {
+                  // Native (and clipboard-blocked web) fall through to the share sheet.
+                }
+                try {
+                  await Share.share({ message: text });
+                } catch {
+                  appAlert('Answer', text);
+                }
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Copy answer"
+              hitSlop={8}
+              style={({ pressed }) => [styles.copyBtn, pressed && { opacity: 0.7 }]}
+            >
               <CopyIcon size={16} />
             </Pressable>
           </View>

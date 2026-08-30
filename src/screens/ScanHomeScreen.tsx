@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppNavigation } from '../navigation';
 
+import { contentColumn } from '../components/ScreenShell';
 import { CameraIcon, ChevronRight, ScanIcon, SparkIcon } from '../components/icons';
 import { openLegalLink } from '../lib/links';
 import { SUBJECTS, subjectMeta } from '../theme/subjects';
@@ -21,13 +22,19 @@ export function ScanHomeScreen() {
   const navigation = useAppNavigation();
   const { solutions, profile } = useApp();
   const [quickAsk, setQuickAsk] = useState('');
+  const [subject, setSubject] = useState<string | null>(null);
 
   const firstName = useMemo(() => (profile?.level ? profile.level.toLowerCase() : ''), [profile]);
   const recent = solutions.slice(0, 4);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.scroll, contentColumn()]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.headerRow}>
           <View>
             <Text style={typography.small}>
@@ -98,14 +105,34 @@ export function ScanHomeScreen() {
         </Text>
 
         <Text style={[typography.small, styles.sectionLabel]}>SUBJECTS</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-          {SUBJECTS.map((s) => (
-            <View key={s.id} style={[styles.subjectChip, { borderColor: `${s.tint}44` }]}>
-              <Text style={{ fontSize: 14 }}>{s.emoji}</Text>
-              <Text style={[typography.caption, { color: s.tint }]}>{s.label}</Text>
-            </View>
-          ))}
-        </ScrollView>
+        <View style={styles.subjectRow}>
+          {SUBJECTS.map((s) => {
+            const on = subject === s.id;
+            return (
+              <Pressable
+                key={s.id}
+                onPress={() => {
+                  setSubject(s.id);
+                  setQuickAsk('');
+                  navigation.navigate('Scanner');
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={s.label}
+                accessibilityState={{ selected: on }}
+                hitSlop={4}
+                style={({ pressed }) => [
+                  styles.subjectChip,
+                  { borderColor: on ? s.tint : `${s.tint}44` },
+                  on && { backgroundColor: s.tintSoft },
+                  pressed && { opacity: 0.82 },
+                ]}
+              >
+                <Text style={{ fontSize: 14 }}>{s.emoji}</Text>
+                <Text style={[typography.caption, { color: s.tint }]}>{s.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
         {recent.length > 0 ? (
           <>
@@ -213,6 +240,7 @@ const styles = StyleSheet.create({
   sectionLabel: { letterSpacing: 0.14, fontWeight: '700', marginTop: 8 },
   aiNote: { color: colors.textTertiary, marginTop: -4, lineHeight: 16 },
   aiNoteLink: { color: colors.textSecondary, textDecorationLine: 'underline' },
+  subjectRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   subjectChip: {
     flexDirection: 'row',
     alignItems: 'center',

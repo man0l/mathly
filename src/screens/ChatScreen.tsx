@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppNavigation } from '../navigation';
 
+import { contentColumn } from '../components/ScreenShell';
 import { ImageIcon, SendIcon, SparkIcon } from '../components/icons';
 import { chatReply } from '../lib/api';
 import { colors, radius, typography } from '../theme/tokens';
@@ -86,7 +87,7 @@ export function ChatScreen() {
         </View>
 
         {chat.length === 0 ? (
-          <View style={styles.empty}>
+          <View style={[styles.empty, contentColumn()]}>
             <Text style={{ fontSize: 36 }}>💬</Text>
             <Text style={[typography.bodySecondary, { textAlign: 'center', marginTop: 10 }]}>
               Ask anything — concepts, homework, exam prep.{'\n'}Or snap a photo for a full solution.

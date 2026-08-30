@@ -39,19 +39,23 @@ export function Button({
     </View>
   );
 
+  const inactive = !!(disabled || loading);
+
   if (variant === 'primary') {
     return (
       <Pressable
         testID={testID}
         onPress={onPress}
-        disabled={disabled || loading}
+        disabled={inactive}
         accessibilityRole="button"
         accessibilityLabel={label}
+        accessibilityState={{ disabled: inactive }}
+        hitSlop={4}
         style={({ pressed }) => [
           styles.base,
           styles.primaryShadow,
-          pressed && styles.pressed,
-          (disabled || loading) && styles.disabled,
+          pressed && !inactive && styles.pressed,
+          inactive && styles.disabled,
           style,
         ]}
       >
@@ -66,14 +70,16 @@ export function Button({
     <Pressable
       testID={testID}
       onPress={onPress}
-      disabled={disabled || loading}
+      disabled={inactive}
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityState={{ disabled: inactive }}
+      hitSlop={4}
       style={({ pressed }) => [
         styles.base,
         variant === 'secondary' ? styles.secondary : styles.ghost,
-        pressed && styles.pressed,
-        (disabled || loading) && styles.disabled,
+        pressed && !inactive && styles.pressed,
+        inactive && styles.disabled,
         style,
       ]}
     >

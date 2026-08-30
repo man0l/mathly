@@ -9,7 +9,7 @@
     "backgroundColor": "#0B0E17",
     "ios": {
       "bundleIdentifier": "com.balkanbit.mathly",
-      "supportsTablet": false,
+      "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Mathly uses your camera to scan math problems and solve them step by step.",
